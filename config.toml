@@ -3,12 +3,16 @@ languageCode = "en-us"
 title = "Parallel Computing and I/O Blog"
 theme = "hugo-geekblog"
 
+paginate = 5
 pluralizeListTitles = false
 
 # Geekblog required configuration
 pygmentsUseClasses = true
 pygmentsCodeFences = true
 disablePathToLower = true
+
+# Required if you want to render robots.txt template
+enableRobotsTXT = true
 
 # Needed for mermaid shortcodes
 [markup]
@@ -43,3 +47,23 @@ disablePathToLower = true
   section = ["HTML"]
   taxonomy = ["HTML"]
   term = ["HTML", "ATOM"]
+
+[params]
+  subtitle = "We conduct research and development on parallel systems"
+  description = "The group Parallel Computing and I/O (ParCIO) conducts research and development on parallel systems. We develop concepts for high-performance computing, storage and file systems, as well as for parallel programming. As part of our teaching activities, we cover these topics and more regarding the efficient use of modern computer systems."
+  #keywords = []
+  #images = []
+
+  #logo = "logo.png"
+
+  #geekblogToC = 3
+
+  #geekblogTagsToMenu = true
+
+  [params.geekblogHostedOn]
+    name = "GitHub Pages"
+    link = "https://pages.github.com/"
+
+  #[params.geekblogContentLicense]
+  #  name = "CC BY-SA 4.0"
+  #  link = "https://creativecommons.org/licenses/by-sa/4.0/"
