@@ -1,0 +1,20 @@
+{{ $ref := "" }}
+{{ $size := default "regular" (.Get "size" | lower) }}
+
+{{ if not (in (slice "regular" "large") $size) }}
+{{ $size = "regular" }}
+{{ end }}
+
+{{ with .Get "href" }}
+  {{ $ref = . }}
+{{ end }}
+
+{{ with .Get "relref" }}
+  {{ $ref = relref $ . }}
+{{ end }}
+
+<span class="gblog-button gblog-button--{{ $size }}{{ with .Get "class" }} {{ . }}{{ end }}">
+<a {{ with $ref }} href="{{.}}" {{ end }} class="gblog-button__link">
+  {{ $.Inner }}
+</a>
+</span>

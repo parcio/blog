@@ -1,0 +1,10 @@
+{
+  "custom.css": "custom.css",
+  "js/clipboard-loader.min.js": "js/clipboard-loader-f0b5fbd5f6.min.js",
+  "js/clipboard.min.js": "js/clipboard-27784b7376.min.js",
+  "js/mermaid-loader.min.js": "js/mermaid-loader-b7fefc76fa.min.js",
+  "js/mermaid.min.js": "js/mermaid-0aef8fa252.min.js",
+  "main.min.css": "main-0097dfc221.min.css",
+  "mobile.min.css": "mobile-690f027f40.min.css",
+  "print.min.css": "print-86167e859a.min.css"
+}
