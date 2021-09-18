@@ -1,0 +1,16 @@
+---
+header:
+  - name: ParCIO Website
+    icon: gblog_bookmarks
+    ref: "https://parcio.ovgu.de/"
+    external: true
+
+footer:
+  - name: Imprint
+    icon: gblog_email
+    ref: "https://parcio.ovgu.de/Imprint.html"
+    external: true
+  - name: Contact
+    icon: gblog_email
+    ref: "https://parcio.ovgu.de/Contact.html"
+    external: true
