@@ -64,6 +64,6 @@ enableRobotsTXT = true
     name = "GitHub Pages"
     link = "https://pages.github.com/"
 
-  #[params.geekblogContentLicense]
-  #  name = "CC BY-SA 4.0"
-  #  link = "https://creativecommons.org/licenses/by-sa/4.0/"
+  [params.geekblogContentLicense]
+    name = "CC BY-SA 4.0"
+    link = "https://creativecommons.org/licenses/by-sa/4.0/"
