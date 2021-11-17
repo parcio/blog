@@ -1,6 +1,6 @@
 +++
 title = "heimdallr: Compile time correctness checking for message passing in Rust"
-date = "2021-11-04T09:49:27+01:00"
+date = "2021-11-17T12:12:19+01:00"
 authors = ["michael.blesel"]
 tags = ["Correctness checking","Message passing", "Rust"]
 +++
@@ -211,7 +211,3 @@ If your interest was piqued a more detailed discussion about the pros and cons o
 There we also discuss some of the problems with the current implementation and show benchmark results where heimdallr's performance is compared to MPI.
 
 If you would like to try out heimdallr or have a look at the code you can visit our [github](https://github.com/parcio/heimdallr) page.
-
-
-
-
