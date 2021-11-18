@@ -1,0 +1,73 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  style:
+    name: Style
+    runs-on: ubuntu-20.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - name: Check format
+        run: |
+          # Make sure to exit with an error if at least one file differs
+          git ls-files 'content/*.md' | ( ret=0
+            while read -r file
+            do
+              echo "Checking ${file}"
+              diff --color --unified "${file}" <(sed -E 's/[[:blank:]]+$//' "${file}") || ret=$?
+            done
+            exit ${ret} ) || exit $?
+  hugo:
+    name: Hugo
+    runs-on: ubuntu-20.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        run: |
+          sudo apt update || true
+          sudo apt --yes --no-install-recommends install hugo
+      - name: Generate blog
+        run: |
+          hugo
+      - name: Upload hugo
+        uses: actions/upload-artifact@v2
+        with:
+          name: hugo
+          path: public
+  publish:
+    name: Publish
+    needs: [hugo]
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: write
+    if: github.ref == 'refs/heads/master'
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: gh-pages
+          path: pages
+      - name: Download hugo
+        uses: actions/download-artifact@v2
+        with:
+          name: hugo
+          path: hugo
+      - name: Prepare
+        run: |
+          rsync --archive --human-readable --verbose --delete --exclude=.git hugo/. pages
+      - name: Commit
+        run: |
+          cd pages
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add --all .
+          git commit --amend --reset-author --message='Hugo for ${{ github.sha }}'
+          git push --force
