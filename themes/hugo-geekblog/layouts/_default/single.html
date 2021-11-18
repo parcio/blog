@@ -16,12 +16,13 @@
             {{ end }}
 
             <h1>{{ partial "title" . }}</h1>
-            {{ if or (eq .Type (default "posts" .Site.Params.GeekblogContentSection)) (eq .Type "post") }}
-            <div class="gblog-post__meta">
-                {{ partial "metadata.html" . }}
-            </div>
-            {{ end }}
         </header>
+
+        {{ if or (eq .Type (default "posts" .Site.Params.GeekblogContentSection)) (eq .Type "post") }}
+        <div class="gblog-post__meta">
+            {{ partial "metadata.html" . }}
+        </div>
+        {{ end }}
 
         <section class="gblog-markdown">
             {{ partial "content" . }}
