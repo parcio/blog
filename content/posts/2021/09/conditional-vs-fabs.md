@@ -1,6 +1,6 @@
 +++
 title = "Performance of conditional operator vs. fabs"
-date = "2021-09-21T11:37:39+02:00"
+date = "2021-09-21"
 authors = ["michael.kuhn"]
 tags = ["Efficiency"]
 +++

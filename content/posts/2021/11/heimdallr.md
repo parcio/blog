@@ -1,15 +1,15 @@
 +++
 title = "heimdallr: Compile time correctness checking for message passing in Rust"
-date = "2021-11-17T12:12:19+01:00"
+date = "2021-11-18"
 authors = ["michael.blesel"]
-tags = ["Correctness","Message passing", "Rust"]
+tags = ["Correctness", "Message Passing", "Rust"]
 +++
 
 In this post we will look at how the Rust programming language and its built-in correctness features can be applied to the message passing parallelization method.
 We will see how Rust's memory safety features can be leveraged to design a message passing library which we call heimdallr.
 It is able to detect parallelization errors at compile time that would go unnoticed by the compiler when using the prevalent message passing interface MPI.
-<!--more-->
 
+<!--more-->
 
 For readers who are new to this topic we will start with a very brief synopsis of message passing.
 In the field of high performance computing (HPC), parallel programs are executed on large computing clusters with often hundreds of computing nodes.
@@ -84,7 +84,6 @@ In the previously given example one might ask themselves why it is necessary for
 The type safety problems with MPI stem from the fact that the whole API works on untyped memory addresses for data buffers via the use of C's `void` pointers to allow the MPI functions to work with any type of data.
 The type information is therefore explicitly discarded and must be manually passed to a MPI function call by the user.
 
-
 ```c {linenos=true,hl_lines=[1,8,10]}
 let client = HeimdallrClient::init(env::args()).unwrap();
 let mut buf = vec![0.0;BUF_SIZE];
@@ -102,7 +101,7 @@ if client.id == 0 {
 Here we see an equivalent program written in Rust with our heimdallr message passing library.
 First of all, it is apparent that the message passing code is less verbose when compared to its MPI counterpart.
 Our design principles with heimdallr are safety and usability.
-From the usability perspective we can see that some of the boilerplate code that is necessary in MPI, like for example manually asking for and storing a process's rank variable, is not required with heimdallr. 
+From the usability perspective we can see that some of the boilerplate code that is necessary in MPI, like for example manually asking for and storing a process's rank variable, is not required with heimdallr.
 
 More importantly, the previously discussed type safety issue for sending a data buffer does not come up with heimdallr.
 We are making use of the language's generic programming features to let the compiler handle the type deduction of a transmitted variable.
@@ -110,7 +109,6 @@ This does not only make it more safe but also easier to use for a developer.
 
 Of course Rust is by far not the only modern language to provide generic programming features and this interface change to the `send` and `receive` functions could have been done in a myriad of languages.
 Therefore we should go on to an example where some of Rust's unique features allow us to provide a safer message passing interface to the users.
-
 
 ## Ensuring buffer safety for non-blocking communication
 
@@ -124,7 +122,6 @@ A solution that is often better suited from the performance perspective is the u
 Here the process of passing the message is handled in the background and the program can continue with its execution almost immediately.
 This type of message passing however does not come without dangers, as we will see in the following code snippet.
 
-
 ```c {linenos=true,hl_lines=[2,4,8]}
 if (rank == 0) {
     MPI_Isend(buf, BUF_SIZE, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD, &req);
@@ -137,14 +134,14 @@ else if (rank == 1) {
 }
 ```
 
-In this example process 0 tries to send a buffer to process 1 using MPI's non-blocking send function `MPI_Isend`. 
+In this example process 0 tries to send a buffer to process 1 using MPI's non-blocking send function `MPI_Isend`.
 The non-blocking send operation in line 2 allows process 0 to continue its execution before the sending of the message has concluded.
 The problem arises in lines 3-4 where process 0 also modifies the contents of the data buffer that is being sent.
 Since the message passing process might still be running this may also modify the contents of the sent message and thereby cause a program error because this behavior was not intended by the programmer.
 
 This is a known safety issue with the use of non-blocking communication in MPI.
 A data buffer that is used in a non-blocking operation is in an *unsafe* state until it has been made sure that the message passing operation on it has concluded.
-To check the status of a non-blocking operation and thereby the safety status of its data buffer, MPI provides functions like `MPI_Wait` that block the current process until the referenced message passing operation is confirmed to be finished. 
+To check the status of a non-blocking operation and thereby the safety status of its data buffer, MPI provides functions like `MPI_Wait` that block the current process until the referenced message passing operation is confirmed to be finished.
 The MPI standard requires such a function to be called before accessing a data buffer again that has been used in non-blocking communication.
 Adding a `MPI_Wait` call between lines 2-3 of the example code would make this program work correctly.
 
@@ -176,7 +173,7 @@ The send operation in line 2 makes use of Rust's ownership concept to protect th
 Since there can be only one owner of the `buf` variable, passing it directly to a function call means that the ownership is moved into the function.
 This has the side effect that `buf` is no longer accessible from outside the function.
 Therefore it is impossible to modify the data buffer while the message passing operation is running.
-Trying to do so would lead to a compilation error. 
+Trying to do so would lead to a compilation error.
 For a user to access the data again they need to request ownership back from the message passing operation, which happens in line 3.
 The `data` function called there on the `handle` that was returned by the non-blocking send function is an equivalent to `MPI_Wait`.
 It blocks until the used data buffer is safe to be accessed again and then returns the ownership to the caller.
@@ -190,7 +187,7 @@ This is of course just one small example on how the safety features of Rust can 
 
 This blog post is supposed to give a brief overview on the challenges of message passing parallelization and how the programming interfaces used for it could be designed in a safer way.
 Parallel programming is a complex topic and introduces a variety of new error classes.
-Therefore we find it very important that the libraries and tools used for it offer as much help as possible to developers by enforcing correctness and detecting possible errors. 
+Therefore we find it very important that the libraries and tools used for it offer as much help as possible to developers by enforcing correctness and detecting possible errors.
 
 The heimdallr library introduced in this post is a prototype implementation of a message passing library that concentrates on the compile time correctness aspects.
 It is not yet feature complete and is mainly supposed to show some of the possibilities for better usability and safety in MPI.
