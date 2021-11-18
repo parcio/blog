@@ -1,7 +1,13 @@
 ---
 header:
-  - name: ParCIO Website
+  - name: Correctness
     icon: gblog_bookmarks
+    ref: "/tags/Correctness"
+  - name: Efficiency
+    icon: gblog_bookmarks
+    ref: "/tags/Efficiency"
+  - name: ParCIO Website
+    icon: gblog_link
     ref: "https://parcio.ovgu.de/"
     external: true
 

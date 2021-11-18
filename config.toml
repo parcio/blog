@@ -58,7 +58,7 @@ enableRobotsTXT = true
 
   #geekblogToC = 3
 
-  #geekblogTagsToMenu = true
+  geekblogTagsToMenu = false
 
   [params.geekblogHostedOn]
     name = "GitHub Pages"
