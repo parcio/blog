@@ -27,21 +27,18 @@
                 <svg class="icon gblog_heart"><use xlink:href="#gblog_heart"></use></svg>
             </span>
         </section>
-        {{ if or (.Site.Params.GeekblogHostedOn) (.Site.Params.GeekblogContentLicense) }}
+        {{ with .Site.Params.GeekblogHostedOn }}
         <section class="flex flex-wrap align-center">
-            {{ with .Site.Params.GeekblogHostedOn }}
             <span class="gblog-footer__item">
                 Hosted on <a href="{{ .link }}" class="gblog-footer__link">{{ .name }}</a>
             </span>
-            {{ end }}
-            {{ with .Site.Params.GeekblogContentLicense }}
+        </section>
+        {{ end }}
+        {{ with .Site.Params.GeekblogContentLicense }}
+        <section class="flex flex-wrap align-center">
             <span class="gblog-footer__item">
-                {{ if site.Params.GeekblogHostedOn }}
-                ·
-                {{ end }}
                 Content licensed under <a href="{{ .link }}" class="gblog-footer__link no-wrap">{{ .name }}</a>
             </span>
-            {{ end }}
         </section>
         {{ end }}
     </nav>
