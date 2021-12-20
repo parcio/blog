@@ -51,7 +51,7 @@ enableRobotsTXT = true
 [params]
   subtitle = "We conduct research and development on parallel systems"
   description = "The group Parallel Computing and I/O (ParCIO) conducts research and development on parallel systems. We develop concepts for high-performance computing, storage and file systems, as well as for parallel programming. As part of our teaching activities, we cover these topics and more regarding the efficient use of modern computer systems."
-  #keywords = []
+  keywords = ["ParCIO", "parallel computing", "parallel I/O", "parallel systems", "high-performance computing", "storage systems", "file systems", "parallel programming"]
   #images = []
 
   #logo = "logo.png"
