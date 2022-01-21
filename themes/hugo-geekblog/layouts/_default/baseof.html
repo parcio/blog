@@ -1,9 +1,17 @@
 <!DOCTYPE html>
-<html itemscope itemtype="http://schema.org/WebPage" lang="{{ .Site.Language.Lang }}">
-
-<head>
+<html
+  itemscope
+  itemtype="http://schema.org/WebPage"
+  lang="{{ .Site.Language.Lang }}"
+  class="color-toggle-hidden"
+>
+  <head>
     {{ partial "head/meta" . }}
-    <title>{{ if not (eq .Kind "home") }}{{ partial "title" . }} | {{ end }}{{ .Site.Title }}</title>
+    <title>
+      {{ if not (eq .Kind "home") }}
+        {{ partial "title" . }}{{ printf " | " }}
+      {{ end }}{{ .Site.Title }}
+    </title>
 
     {{ partial "head/favicons" . }}
     {{ partial "head/rel-me" . }}
@@ -11,21 +19,23 @@
     {{ partial "head/others" . }}
     {{ partial "head/schema.html" . }}
     {{ partial "head/custom" . }}
-</head>
+  </head>
 
-<body>
-    {{ partial "svg-icon-symbols" . }}
+  <body>
+    {{ partial "svg-sprites" . }}
 
-    <div class="wrapper {{ if default false .Site.Params.GeekblogDarkModeDim }}dark-mode-dim{{ end }}">
-        {{ partial "site-header" . }}
 
-        <main class="gblog-page container">
-            {{ template "main" . }}
-        </main>
+    <div
+      class="wrapper {{ if default false .Site.Params.GeekblogDarkModeDim }}dark-mode-dim{{ end }}"
+    >
+      {{ partial "site-header" . }}
 
-        {{ partial "site-footer" . }}
+
+      <main class="gblog-page container">
+        {{ template "main" . }}
+      </main>
+
+      {{ partial "site-footer" . }}
     </div>
-
-    {{ partial "foot" . }}
-</body>
+  </body>
 </html>
