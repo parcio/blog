@@ -1,12 +1,322 @@
 {
-  "custom.css": "custom.css",
-  "js/clipboard-loader.min.js": "js/clipboard-loader-351c9a8f73.min.js",
-  "js/clipboard.min.js": "js/clipboard-27784b7376.min.js",
-  "js/copycode.min.js": "js/copycode-96eedb9afb.min.js",
-  "js/darkmode.min.js": "js/darkmode-f8af5df16d.min.js",
-  "js/mermaid-loader.min.js": "js/mermaid-loader-1bd1515cbf.min.js",
-  "js/mermaid.min.js": "js/mermaid-a77aea9fc8.min.js",
-  "main.min.css": "main-ac63386494.min.css",
-  "mobile.min.css": "mobile-7fbe0a5c9c.min.css",
-  "print.min.css": "print-86167e859a.min.css"
+  "bundle.js": {
+    "src": "js/bundle.bundle.min.js",
+    "integrity": "sha512-a+6RzJyc1P/uqdrEQwvC9U5rYxUH1XsZIMzCydiMCQGe8PTF01RI+eBP/6wNY+HzHHx0HxsjNcFH+MoFR1w7Rg=="
+  },
+  "mermaid.js": {
+    "src": "js/mermaid.bundle.min.js",
+    "integrity": "sha512-CEmuzrlePS/BZ3GDvVuB8eCoBqRIooMngQVpfiDAkpPwevPZIfTUAZHlWVWxdca/d7TPArZyPI5PkWAjDaWcFg=="
+  },
+  "js/273.chunk.min.js": {
+    "src": "js/273.chunk.min.js",
+    "integrity": "sha512-9eQPYihSzPu9PUbE+QBit/V+nVE2NJ0rnhExfkem5fvqsFNxBhs3pAUM18Urd5gYvRiNtifr55VYpKSDjQT+dg=="
+  },
+  "favicon/apple-touch-startup-image-2732x2048.png": {
+    "src": "favicon/apple-touch-startup-image-2732x2048.png",
+    "integrity": "sha512-ZZlf0Zb13QmLzI2bVqtmxppG8Ygoz8yQ+JDt9U+PNO9DpgvhURkV7Kb/J8TFfeybnn9NefE2OB1Pjj0sedc0Tg=="
+  },
+  "favicon/apple-touch-startup-image-2048x2732.png": {
+    "src": "favicon/apple-touch-startup-image-2048x2732.png",
+    "integrity": "sha512-id9+xNRZhgynMhQi4U9U53UfG8kZjkmMmF3FKGOtWx/cmGgxtXJA2NCfmPAzNT3ptX4aeyLA+QaeQ11XT817qA=="
+  },
+  "fonts/LiberationSans-Italic.woff": {
+    "src": "fonts/LiberationSans-Italic.woff",
+    "integrity": "sha512-3rg7qqlEgAeip3NcoxqNNKeVrPvkXCxHbybcidDz8/aKmNhtp9LG45K20dOaOxvWrB+XbjM6bBPnRuzJj8Pltw=="
+  },
+  "fonts/LiberationSans-BoldItalic.woff": {
+    "src": "fonts/LiberationSans-BoldItalic.woff",
+    "integrity": "sha512-l+QH9jdBUO/jvAiX27bbZvr5vCiPwBt1IJqfTy3545wRaqGOP2qeFNvolbaj7kIS7d0rc841Lgf7NACrcMFCmQ=="
+  },
+  "fonts/LiberationSans-Bold.woff": {
+    "src": "fonts/LiberationSans-Bold.woff",
+    "integrity": "sha512-dcvCYm+u+bCFKnERGNyS94DBqaNaaXr7TdD6cNXNvCwNV1jk7mOnRXub3rjX2hoIEcyMSBbeIny9nP5QCBij2g=="
+  },
+  "fonts/LiberationSans.woff": {
+    "src": "fonts/LiberationSans.woff",
+    "integrity": "sha512-X8iWtp7gsJFHLyWhQzM8IZMH97LUsxhB5Hzv9smPHsqmRrDhl/S5xClHq3lUEtupVjCxcthMXl2qQvXcM3XVkA=="
+  },
+  "favicon/apple-touch-startup-image-2224x1668.png": {
+    "src": "favicon/apple-touch-startup-image-2224x1668.png",
+    "integrity": "sha512-Q8RmlDavwzHSjTfzCPxld2r/aCrDc6Scd4gbVwZw6lxDMQ20c1TaFQK+8v6zxtNc5q/NXYzFo5zlnGkpuD7hQA=="
+  },
+  "favicon/apple-touch-startup-image-1668x2224.png": {
+    "src": "favicon/apple-touch-startup-image-1668x2224.png",
+    "integrity": "sha512-U+1zzzMT9QPlBxgWwjSayEKjkVhmT1xZ82IBoP1MWgsfgQ9pzkbQwInrxjVMkIdbDbVQxSYnlP2DKZSsnsv4fg=="
+  },
+  "favicon/apple-touch-startup-image-2388x1668.png": {
+    "src": "favicon/apple-touch-startup-image-2388x1668.png",
+    "integrity": "sha512-MEzovY3c36+zRD1uT9yVdnyIjniSTs0pnMxYcLI0ByaK+E/6jGYow4qVAK3KT6Np9kdA01+rXiP1WLZH8gzo3w=="
+  },
+  "favicon/apple-touch-startup-image-2160x1620.png": {
+    "src": "favicon/apple-touch-startup-image-2160x1620.png",
+    "integrity": "sha512-8QkcZSqoIEszaaa/UQ7ePjUsgsf6Do7A/Kp321D1denkiMcQrcC7yUv6iYGfN+yvOCAkhhtY3zWqYutSlVzpKw=="
+  },
+  "favicon/apple-touch-startup-image-1668x2388.png": {
+    "src": "favicon/apple-touch-startup-image-1668x2388.png",
+    "integrity": "sha512-E2JkuOJ34f7YeeMI2jdp0l/wX0BEaaNO/4kBcz7WmJLEoj1lj1B1lboZB+NiSIwizAa4amXUjwnSn1csRwPmVQ=="
+  },
+  "favicon/apple-touch-startup-image-1620x2160.png": {
+    "src": "favicon/apple-touch-startup-image-1620x2160.png",
+    "integrity": "sha512-tM0UrRfNQhwor6igEt+UlJRkMS/C3htGc4K8R2mzCOgab3BtnVh05wlMn8Tgic9+N4toh7DJsi/t/7JWGTTwIg=="
+  },
+  "fonts/LiberationMono.woff": {
+    "src": "fonts/LiberationMono.woff",
+    "integrity": "sha512-fP8icFlpIzR+72w2iaQLQAImsyFi7T1hjZhT4102/kw2k0EJ8Q4iufSfjxhlKyeh7EAzF8OaEsOKeOmA7MfHVA=="
+  },
+  "favicon/apple-touch-startup-image-2048x1536.png": {
+    "src": "favicon/apple-touch-startup-image-2048x1536.png",
+    "integrity": "sha512-GOtegSd7UzIpWv/CpEg91nVzT9V5lxvQ02tKDDXGde5kOeswZf3WsTZE/biyQWPpovxQ08J1D86N0iJ2FALLOw=="
+  },
+  "favicon/apple-touch-startup-image-1536x2048.png": {
+    "src": "favicon/apple-touch-startup-image-1536x2048.png",
+    "integrity": "sha512-wlDpzMF6qOScjaPx+01o9KBANoTRZdfTfTHyKaIcW31jr3kugTRYogekkU0YaQ/8sQq9GLmrl3P5qXhxA+wz6w=="
+  },
+  "fonts/LiberationSans-Italic.woff2": {
+    "src": "fonts/LiberationSans-Italic.woff2",
+    "integrity": "sha512-boZm4ZsUNEmYS85TJvhuBiOUS18gpj0+9WbFgBpAQbCWdU5yde32bVS6rP0YvNvZMuS/R92y+e/bKbcgbMGDtg=="
+  },
+  "fonts/LiberationSans-BoldItalic.woff2": {
+    "src": "fonts/LiberationSans-BoldItalic.woff2",
+    "integrity": "sha512-5MVxBiZI9GlXK/F6eeZnwsLBYOMzoQ+ncAmSIoBa+kkrYnMfWaEHJaJO9tA6ml44ety3gt4e9tNmYZULvO86ug=="
+  },
+  "fonts/LiberationSans-Bold.woff2": {
+    "src": "fonts/LiberationSans-Bold.woff2",
+    "integrity": "sha512-msH61PCwMuCScUPTyVOjuQgZBhYICioAyJxifpioqircJqe1voESkLNzFz6NBmhewRZvfwJHKzwAne1cxg7mpQ=="
+  },
+  "fonts/LiberationSans.woff2": {
+    "src": "fonts/LiberationSans.woff2",
+    "integrity": "sha512-/se1p5pF9DbDIpOqEIdjqpr1J3v84dQAHPFdMsK1ZiojTlOWQJuqCH4jZ+oZh2K7TtOJa8lyY14RIHTvGh3+SQ=="
+  },
+  "fonts/LiberationMono.woff2": {
+    "src": "fonts/LiberationMono.woff2",
+    "integrity": "sha512-p5oGo6T78XQ6SECsAez1Sc9HBw0SvLJlhndS+pJ0KyauzBdilh7/8/M/V8ivTjbJKU+rJHtIjHtMUVhPQjXq+g=="
+  },
+  "favicon/apple-touch-startup-image-2208x1242.png": {
+    "src": "favicon/apple-touch-startup-image-2208x1242.png",
+    "integrity": "sha512-CmoPpmLe6X+b+2naPEnBaVsvlIwOWqngqYermdb8mAXCXIDFh76LcGd4/bOPtTka8G8zwGr7ZYG2LLxD+Bkkbg=="
+  },
+  "favicon/apple-touch-startup-image-1242x2208.png": {
+    "src": "favicon/apple-touch-startup-image-1242x2208.png",
+    "integrity": "sha512-JH9VWJb+wy3nw5trOnMRy5DRQUAVIa/c8WZOWZ1vpGHgobWFkItX2iB24CH/+39/cx8m88ruUwGKOaCInRT3gA=="
+  },
+  "favicon/apple-touch-startup-image-2688x1242.png": {
+    "src": "favicon/apple-touch-startup-image-2688x1242.png",
+    "integrity": "sha512-bRTaP6XIvltf2LPn6+N52uGxV+EEc8eAF8FVsTpQbp2hy+3Xm4d4YdRa8i6s+Pf+NpHzNhviRx05bQjCdcv9ug=="
+  },
+  "favicon/apple-touch-startup-image-1242x2688.png": {
+    "src": "favicon/apple-touch-startup-image-1242x2688.png",
+    "integrity": "sha512-IKLCuH8JunCIxGkNjKS5xGU1U54EXm5R2ZDDu/0jD3JIpzHR/Y41x4iu1+AIuM8IGddk/5+toZM8SYxM+A4a8w=="
+  },
+  "favicon/apple-touch-startup-image-2436x1125.png": {
+    "src": "favicon/apple-touch-startup-image-2436x1125.png",
+    "integrity": "sha512-sf50YF+0w8n++gAhPaWe+EAlJoSx5cz5n72Gi0zkAt8inm6F2E0iQOVgJwKABmB05PF5Lp9+Y7t2pI+5j1G04A=="
+  },
+  "favicon/apple-touch-startup-image-1125x2436.png": {
+    "src": "favicon/apple-touch-startup-image-1125x2436.png",
+    "integrity": "sha512-QQ4oJprtgxOill230z63Pora27X7xKPTw8XT1UGIsXPL4hkSHi/vtLUw+R7FdeGN2dKnsVPbRvDXql1Vo+gKww=="
+  },
+  "favicon/apple-touch-startup-image-1792x828.png": {
+    "src": "favicon/apple-touch-startup-image-1792x828.png",
+    "integrity": "sha512-pj/i+iq/lJqHAAluSQZHM2RT/5iIMN20rgfRfxqFUpGpqYk6TJ8JHJfkXWfUBsiOQLBpRMWYdB9q2cHUy7jXBQ=="
+  },
+  "favicon/apple-touch-startup-image-828x1792.png": {
+    "src": "favicon/apple-touch-startup-image-828x1792.png",
+    "integrity": "sha512-P0OvcJNC6loOYCHHGLIghz20x2WOhnFnMc6P5JxstBR19v39P8x/QEICqm4mnqZRro0kmAQ2JZWWJePJRKTUrQ=="
+  },
+  "favicon/apple-touch-startup-image-750x1334.png": {
+    "src": "favicon/apple-touch-startup-image-750x1334.png",
+    "integrity": "sha512-R1iBlMbrV1fEBhWK018GDt+PUuA0gjH61FZaeZQXetzbo0TwN2ycEp85bvL9RABi2lhq4A3bSyRA0+EdgXLBBg=="
+  },
+  "favicon/apple-touch-startup-image-1334x750.png": {
+    "src": "favicon/apple-touch-startup-image-1334x750.png",
+    "integrity": "sha512-g9p6efg0w3KECZtWYWwLaYYCaQDXCN+usweti+zD2bToDrv4qVuK6XMDUryH45Mzy7Wpbb5YN9fuz99dGSzcnw=="
+  },
+  "favicon/apple-touch-startup-image-640x1136.png": {
+    "src": "favicon/apple-touch-startup-image-640x1136.png",
+    "integrity": "sha512-/QV3JA6uokUJ7pK/uAqvBS3vNpCuXGmtsRXA971ii9bvPqzonbXjvA/3GNlg4itzaoer1uED3CGbeq2wtjGzzA=="
+  },
+  "favicon/apple-touch-icon-1024x1024.png": {
+    "src": "favicon/apple-touch-icon-1024x1024.png",
+    "integrity": "sha512-MXwv0IxEEPKDHit3HKP+6GtEfLK/IE6b75Yx6zGx21LA6nr0dYUQLvR3ez0l82Kut77HMM5MKY1u7ug9O9aCdA=="
+  },
+  "favicon/apple-touch-startup-image-1136x640.png": {
+    "src": "favicon/apple-touch-startup-image-1136x640.png",
+    "integrity": "sha512-Np/tB46nzHcjIGdEYiz9UOSJSugPvpx8eNFo1a36qKtkWO2LriHBqrm59x/eGpfhHBpfwGz7GEhzkdMro1XwvA=="
+  },
+  "favicon/android-chrome-512x512.png": {
+    "src": "favicon/android-chrome-512x512.png",
+    "integrity": "sha512-Zr/PZ9PKVQGUQo//7mjjCmsojpdfid0qp1TAH3Yb4PDg2m5V52AuXCVgQvIHDkmIzHFz8HnGS8apJBV6MylDpw=="
+  },
+  "favicon/android-chrome-384x384.png": {
+    "src": "favicon/android-chrome-384x384.png",
+    "integrity": "sha512-7Nhweun5263hHMApy5cTYbZkp2XLgtmsMeWanhQD5abLDgJJIcjsuIno4H198nxiAVdzy4ESRegvLsn7JqWXyQ=="
+  },
+  "main.scss": {
+    "src": "main-72c50145.min.css",
+    "integrity": "sha512-ryn7W44/2zbmIrZ+rndlDBy0PS0LQ9nXLqe++JVNSPo5KkFf8i2rGGPGvJ8DYNCPrNN4KYFzmlRlBiK9vkL+bA=="
+  },
+  "favicon/firefox_app_512x512.png": {
+    "src": "favicon/firefox_app_512x512.png",
+    "integrity": "sha512-JZimK20zgvBr0HkbgDJXYarMRWLAalzd5SZOYNGGPn86IyGWzaE05BGfjwo7D0cMSuNbDcUWdxCEI9yTa95uXw=="
+  },
+  "favicon/favicon.ico": {
+    "src": "favicon/favicon.ico",
+    "integrity": "sha512-wOVXxWQHMlfiRspd+1W6KqP9uaxuy4850viUFjPNPBKCMfXGd3s+o6bS1XYjeMCevd7eD1PG59tLxZRTU/+jJw=="
+  },
+  "favicon/mstile-310x310.png": {
+    "src": "favicon/mstile-310x310.png",
+    "integrity": "sha512-BXFYC0SPkfP9zm0OaYusfkgT8Mh9WNSols7FFGDJ87+hKD9+rbCe9tKXR4Buz89R38bGYfWHUm0jjWFkzu7qxg=="
+  },
+  "favicon/android-chrome-256x256.png": {
+    "src": "favicon/android-chrome-256x256.png",
+    "integrity": "sha512-PgeosmDU1Esb8W52khr1TC/RVTOKd6Mq0mvvezFpjy5URof3c1KHn7Hdsm1EPBO0eX80hai/uabNVfgm6LGlMg=="
+  },
+  "favicon/android-chrome-192x192.png": {
+    "src": "favicon/android-chrome-192x192.png",
+    "integrity": "sha512-U+4wEMh/v3McA/Ocbr1Mw7aheNUeKX6MUrgTED8LpVkdM9d387MhST3QTYuAkKpYxcw6EQdm3eqX+rMvGa66sw=="
+  },
+  "fonts/Metropolis.woff": {
+    "src": "fonts/Metropolis.woff",
+    "integrity": "sha512-fqZj5Y6hMExrGIb+OuLPY4hnQ+/ILiPON6MpAc77iKhzTWNn7KvSdfwS2NY5hmAYGfggxl55cYRUgT6F/W/RjQ=="
+  },
+  "favicon/apple-touch-icon-180x180.png": {
+    "src": "favicon/apple-touch-icon-180x180.png",
+    "integrity": "sha512-w+MclxycAvo3M2k4Cev1F+5O1cCcQSpRx927WRkcj9NFsDOMG0RvqRjHBYlkhJr90na7LJsJhFzv63mY4hQXfQ=="
+  },
+  "favicon/apple-touch-icon-precomposed.png": {
+    "src": "favicon/apple-touch-icon-precomposed.png",
+    "integrity": "sha512-w+MclxycAvo3M2k4Cev1F+5O1cCcQSpRx927WRkcj9NFsDOMG0RvqRjHBYlkhJr90na7LJsJhFzv63mY4hQXfQ=="
+  },
+  "favicon/apple-touch-icon.png": {
+    "src": "favicon/apple-touch-icon.png",
+    "integrity": "sha512-w+MclxycAvo3M2k4Cev1F+5O1cCcQSpRx927WRkcj9NFsDOMG0RvqRjHBYlkhJr90na7LJsJhFzv63mY4hQXfQ=="
+  },
+  "favicon/apple-touch-icon-167x167.png": {
+    "src": "favicon/apple-touch-icon-167x167.png",
+    "integrity": "sha512-H914I/k4HcFkLszeWk/U1kutdL0Cu2HUsYVdLo8XPGWmm8nIYwUsEnwKJv+3YxHKrn/oMxAF+xsnRb/VjJiS9g=="
+  },
+  "favicon/firefox_app_128x128.png": {
+    "src": "favicon/firefox_app_128x128.png",
+    "integrity": "sha512-lSvusPFndkTij9/drABCydItjLM/RbDyoprM8xk0hlf48BcK6xPD0YHyjZkddnsGSlgQxI3zM/7LyPlpteoUBw=="
+  },
+  "favicon/mstile-150x150.png": {
+    "src": "favicon/mstile-150x150.png",
+    "integrity": "sha512-T7TPoXvN184wBk12PyjKYuKujgmqdbRKU6RXlDc5H8WltHBgi9Kv3a0xlnffDj8YxjUfwdF9MCNRWYcFlHXfBA=="
+  },
+  "favicon/apple-touch-icon-152x152.png": {
+    "src": "favicon/apple-touch-icon-152x152.png",
+    "integrity": "sha512-QBpFMc5dCKaBlzAHHe6dgGfOQMo3dhvrQaQ5xuiawJSKQDaxG5jqCDwSriDkFHoY9XTtK/2JeLpc2hMSn1EHwA=="
+  },
+  "favicon/android-chrome-144x144.png": {
+    "src": "favicon/android-chrome-144x144.png",
+    "integrity": "sha512-RfvXRctT0klQhsT5t61KGP+WDRnTuCM1+Xd4itoQ/0kVjALu+4EuIbbRSIcEAKIByVK2KWaYwMRJJnOvwoM7Dg=="
+  },
+  "favicon/mstile-144x144.png": {
+    "src": "favicon/mstile-144x144.png",
+    "integrity": "sha512-RfvXRctT0klQhsT5t61KGP+WDRnTuCM1+Xd4itoQ/0kVjALu+4EuIbbRSIcEAKIByVK2KWaYwMRJJnOvwoM7Dg=="
+  },
+  "favicon/apple-touch-icon-144x144.png": {
+    "src": "favicon/apple-touch-icon-144x144.png",
+    "integrity": "sha512-+eGIgDBhlsVAg2glu+nIvxMfDvbcUxm0OI5GxQL7C788h6g2zPz7MycMWox7cdlwmWVQIus1upyUvcbNslK/gw=="
+  },
+  "fonts/Metropolis.woff2": {
+    "src": "fonts/Metropolis.woff2",
+    "integrity": "sha512-oS5Y/tXC8/vG4f7KiHpDicy0yE4zs1TMps9Mzfk3M8O7/QNeC9Q7ZcsjnncuGo0vQB5RXU8g460XpSUB5Luc4Q=="
+  },
+  "favicon/mstile-310x150.png": {
+    "src": "favicon/mstile-310x150.png",
+    "integrity": "sha512-NtgiGXiUZaSjmoTTCbYPMehQ+2jzXf6GmB0Bl87IQvofuXDooBINBdh1aL9a9MxGHOU7bTOpUQcBwVcZ9gQzQg=="
+  },
+  "favicon/apple-touch-icon-120x120.png": {
+    "src": "favicon/apple-touch-icon-120x120.png",
+    "integrity": "sha512-/kIbxBL3BpednSwkQ0m85Esdn20ZRL1PuV/k1GR57XWry/8lEVsVjQI4cDycAh7jEjLChXLvallLCGDSIebeGw=="
+  },
+  "favicon/apple-touch-icon-114x114.png": {
+    "src": "favicon/apple-touch-icon-114x114.png",
+    "integrity": "sha512-OcAtBmHeSlnkjfy4KQdc2GJQfbL81eypfl12ceOQTmlOTqBD6aRImcwlxJeNK5YOqNmu+v6+v5GTsERMCeWbnA=="
+  },
+  "favicon/android-chrome-96x96.png": {
+    "src": "favicon/android-chrome-96x96.png",
+    "integrity": "sha512-Dt4H/aABw2d0eaRSiHNoz6m+cHdYeHGNwBMAM1eB/+lb4iXPEpTKx7Y4Aku2ivhj2PXDJSW0rC0PnAeu/4GaTw=="
+  },
+  "favicon/firefox_app_60x60.png": {
+    "src": "favicon/firefox_app_60x60.png",
+    "integrity": "sha512-q8/nZZA1SIdkhmF5CbqYpPHIQiaPqBn4JxF63s7nQmwPrp+cuNFKdYL6oFe2fzgY2dW+cvEkChNl935U9q9t4A=="
+  },
+  "favicon/android-chrome-72x72.png": {
+    "src": "favicon/android-chrome-72x72.png",
+    "integrity": "sha512-sCwhrwghnTlTlHmrrx3wTZNZIM3w8Za/3Zu81lXCLRoY/VsBLsDCG15SOVFxRjkK0PJFqTuzPYlKqihW7URz4w=="
+  },
+  "favicon/apple-touch-icon-76x76.png": {
+    "src": "favicon/apple-touch-icon-76x76.png",
+    "integrity": "sha512-/qE6x9P9GjuLgfWc37m9uo0XNv1HXTUE6J3VxBGSsRyAAE+dlQYwIC37yP3vw8v2NjmGBXORXVokcTVnLx6CTg=="
+  },
+  "favicon/mstile-70x70.png": {
+    "src": "favicon/mstile-70x70.png",
+    "integrity": "sha512-RfLjEYfYfZDUdzRP2mTt8dZ6NqHfpWR/rJ+ptzyjjliN7Hs3hLLfe2aGkwIEpJAMfS5hGu9KpW78XAFBiLpK3A=="
+  },
+  "favicon/apple-touch-icon-72x72.png": {
+    "src": "favicon/apple-touch-icon-72x72.png",
+    "integrity": "sha512-p4Jc8FldFg+reCOIoS58IavWbSyIdzK18MKeTTTm2gpYk6Z8qSuwwWiKiSwn1IUFVunA6qzu37dpRGC5ZJRicQ=="
+  },
+  "fonts/GeekblogIcons.woff": {
+    "src": "fonts/GeekblogIcons.woff",
+    "integrity": "sha512-S+kpSQGM4pWEfUIoGPVR+ety7s+JqSSpUy/62ulbKio88uDLaGPjIKSsbmXiyuws7GpFpJce/0K6c/DiMlxjiw=="
+  },
+  "favicon/favicon-48x48.png": {
+    "src": "favicon/favicon-48x48.png",
+    "integrity": "sha512-F3AyyFf1EvhQBuaxx0S4czVmXAX9Ov3fPSwLHwWDaLQ2FYmBrViTCK28ZoxxMuXus4g8r0/1xBlaCp9uRv5gKA=="
+  },
+  "favicon/apple-touch-icon-60x60.png": {
+    "src": "favicon/apple-touch-icon-60x60.png",
+    "integrity": "sha512-fTID3FaZ15nPdFvJRC3MaPMZAh7iVMKSSBl5Fbva2fG32P0S/r3j9IlVKu1APaVlOp/t44I9W6lb7BeKlgUsGA=="
+  },
+  "fonts/GeekblogIcons.woff2": {
+    "src": "fonts/GeekblogIcons.woff2",
+    "integrity": "sha512-rLyzykg4efa/R8iQqVceKgAdHQTjwMN68RrHQJqX419rKQmQRAkyjXFibToa2eds6n0GdYGUWOIjs2wPUu1Elw=="
+  },
+  "favicon/apple-touch-icon-57x57.png": {
+    "src": "favicon/apple-touch-icon-57x57.png",
+    "integrity": "sha512-V4lGh2+E57AKD3OcovFSnPL1pJHKprGLFLOEC6KFwVtkDifcfXwacTQZmM52ZGsOdl6PAQJZCPWV4Bt6+XUrcw=="
+  },
+  "favicon/android-chrome-48x48.png": {
+    "src": "favicon/android-chrome-48x48.png",
+    "integrity": "sha512-hyPa5QKppOV3gc6jY9LfQUKMfbQ6ql95n/DjkJ7volnWrA6UVPwWKPxBEaiKfxR3twDyrmviTUyLvU+ErA2ANg=="
+  },
+  "favicon/favicon-32x32.png": {
+    "src": "favicon/favicon-32x32.png",
+    "integrity": "sha512-EnVHYfqdeBHpJh6L0haCIcwURPHXztHC3ibefGAzjpql26288I0b3tKXvIaOUMLf+XDk2dPydkc2mGTaM0/eDw=="
+  },
+  "favicon/android-chrome-36x36.png": {
+    "src": "favicon/android-chrome-36x36.png",
+    "integrity": "sha512-bbi6F9cuS4Zsi7M8JKdQuVELRksVZ2yoh5cvLD6jEa1yNmr8bqZpps6Bd1defo7fNRSV0ApfD7zOWAJEyFI6kQ=="
+  },
+  "mobile.scss": {
+    "src": "mobile-3888ed2b.min.css",
+    "integrity": "sha512-5KIJ3spkxy/1WvXB67tHYpoLBGgcl1diAIv75CSP8NCLpGOoYGLk3aIIF5DDyOmOn2iZXXJgG+En+cRziqufTg=="
+  },
+  "favicon/manifest.json": {
+    "src": "favicon/manifest.json",
+    "integrity": "sha512-yWRCuMbBhoFN2hrQ/S+7IchcV6Eu5F6UEq5XAG3qm/6fUBsQ38xfc5qiI9jUGxfHPQx1oIMh7K89zuWa1aK/FA=="
+  },
+  "favicon/favicon-16x16.png": {
+    "src": "favicon/favicon-16x16.png",
+    "integrity": "sha512-P8KybXWV9UJq2f8rzqpvsVVaJazt11sTqA2OahaWpOX0Uj2Woruq/UN7bjBH34suPg/X9u2PupZh7dliDXpJdA=="
+  },
+  "print.scss": {
+    "src": "print-8a905a2e.min.css",
+    "integrity": "sha512-vcWPBuatnFf1XCfqzhsmkFDxa5kAGXnnGHClqo+CL3jA/8RjSGdqDourV6Mg4oZMcDARwZKyBMZNRr4s+M/vqQ=="
+  },
+  "favicon/browserconfig.xml": {
+    "src": "favicon/browserconfig.xml",
+    "integrity": "sha512-RDr7E4dJmkJdQMyNa4dtxx3iYnrSnFHlifwV1LriUChccTz+aB0gNe0CRL94GXHGd1DiUU+QgEXXNC2Mupn9aw=="
+  },
+  "favicon/manifest.webapp": {
+    "src": "favicon/manifest.webapp",
+    "integrity": "sha512-RnAywJAHzmxHEV0Oye579py6I9HRUMKXZpV8Y1TjE7mPUsWXb3ilrvxUIj/bvksKkkyPqwqfS9VKeh+iZdKkKw=="
+  },
+  "custom.css": {
+    "src": "custom.css",
+    "integrity": "sha512-1kALo+zc1L2u1rvyxPIew+ZDPWhnIA1Ei2rib3eHHbskQW+EMxfI9Ayyva4aV+YRrHvH0zFxvPSFIuZ3mfsbRA=="
+  }
 }
