@@ -1,10 +1,10 @@
 ---
 header:
   - name: Correctness
-    icon: gblog_bookmarks
+    icon: gblog_bookmark
     ref: "/tags/Correctness"
   - name: Efficiency
-    icon: gblog_bookmarks
+    icon: gblog_bookmark
     ref: "/tags/Efficiency"
   - name: ParCIO Website
     icon: gblog_link
