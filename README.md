@@ -8,14 +8,14 @@ Use the following command to create a new post.
 `YYYY` should be replaced by the current year and `MM` should be replaced by the current month.
 
 ```console
-$ hugo new posts/YYYY/MM/short-title.md
+$ hugo new posts/YYYY/MM/short-title/index.md
 ```
 
 The post template already includes some common boilerplate.
 For everything else, please take a look at the existing posts;
 their souce can be found in `content/posts`.
 
-Static content such as code, images etc. should be put in `static`, following the same directory structure as `content/posts`.
+Resources such as code, images etc. should be put in the post's directory.
 
 ## Create New Author
 
