@@ -118,5 +118,5 @@ These branch and instruction differences can be checked in even more detail usin
 
 The magnitude of these performance differences is rather surprising and shows that it makes sense to check even seemingly simple code for potential performance problems.
 
-[^code]: The code shown is only an excerpt, the full code is available [here](/code/2021/09/conditional-vs-fabs.c). It was compiled with GCC 11.2 using the `-O2 -Wall -Wextra -Wpedantic` flags and the `-lm` library.
+[^code]: The code shown is only an excerpt, the full code is available [here](conditional-vs-fabs.c). It was compiled with GCC 11.2 using the `-O2 -Wall -Wextra -Wpedantic` flags and the `-lm` library.
 [^hyperfine]: hyperfine performs a statistical performance analysis. It runs the provided commands multiple times to reduce the influence of random errors and calculates derived metrics such as the mean and standard deviation.
