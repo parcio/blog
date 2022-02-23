@@ -1,4 +1,4 @@
-<script src="{{ index (index .Site.Data.assets "bundle.js") "src" | relURL }}"></script>
+<script src="{{ index (index .Site.Data.assets "main.js") "src" | relURL }}"></script>
 
 <link
   rel="preload"
@@ -65,13 +65,18 @@
   href="{{ index (index .Site.Data.assets "custom.css") "src" | relURL }}"
   media="all"
 />
+{{- with .OutputFormats.Get "html" }}
+  {{ printf `<link href=%q rel=%q type=%q />` .Permalink .Rel .MediaType.Type | safeHTML }}
+{{- end }}
+{{- $output_formats := (.Site.GetPage "home").OutputFormats }}
+{{- range $format := (.Site.GetPage "home").OutputFormats }}
+  {{- if not (eq $format.Rel "canonical") }}
+    {{ printf `<link href=%q rel=%q type=%q title="%s %s Feed" />` $format.Permalink $format.Rel $format.MediaType.Type $.Site.Title $format.Name | safeHTML }}
+  {{- end }}
+{{- end }}
 
-{{ with .OutputFormats.Get "atom" }}
-  {{ printf `<link rel="%s" type="%s" href="%s" title="%s">` .Rel .MediaType.Type .Permalink $.Site.Title | safeHTML }}
-{{ end }}
-
-{{ if (default false $.Site.Params.GeekblogOverwriteHTMLBase) }}
+{{- if (default false $.Site.Params.GeekblogOverwriteHTMLBase) }}
   <base href="{{ .Site.BaseURL }}" />
-{{ end }}
+{{- end }}
 
 {{ printf "<!-- %s -->" "Made with Geekblog theme https://github.com/thegeeklab/hugo-geekblog" | safeHTML }}

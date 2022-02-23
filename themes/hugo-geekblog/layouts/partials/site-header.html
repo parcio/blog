@@ -50,10 +50,12 @@
         {{ with $.Site.GetPage (printf "/tags/%s" $name) }}
           <li>
             <a
-              class="gblog-nav__entry {{ if eq $currentPage .RelPermalink }}is-active{{ end }}"
+              class="gblog-nav__entry{{ if eq $currentPage .RelPermalink }}
+                {{ printf " %s" "is-active" }}
+              {{ end }}"
               href="{{ .RelPermalink }}"
             >
-              {{ .Title }}
+              {{ partial "utils/title" . }}
             </a>
           </li>
         {{ end }}
