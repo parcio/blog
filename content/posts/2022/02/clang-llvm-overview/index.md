@@ -17,6 +17,10 @@ title = "Example Compilation (C source code -> x86_64 assembly)"
 name = "clang-llvm-pipeline"
 src = "clang-llvm-pipeline.png"
 title = "Clang/LLVM pipeline"
+[[resources]]
+name = "ast"
+src = "ast.png"
+title = "Clang AST for hello world program"
 +++
 
 Compilers are complex programs with complex requirements. The two most widespread C-compilers, GCC and Clang/LLVM, are **10-15 million** lines of code behemoths, designed to produce optimal machine code for whatever arbitrary target the user desires.
