@@ -21,6 +21,10 @@ title = "Clang/LLVM pipeline"
 name = "ast"
 src = "ast.png"
 title = "Clang AST for hello world program"
+[[resources]]
+name = "ast-dump"
+src = "ast-dump.png"
+title = "Clang AST dump for the hello world C program."
 +++
 
 Compilers are complex programs with complex requirements. The two most widespread C-compilers, GCC and Clang/LLVM, are **10-15 million** lines of code behemoths, designed to produce optimal machine code for whatever arbitrary target the user desires.
@@ -99,11 +103,58 @@ The lexer only does very simple recognition of the basic syntactical building bl
 
 Using the list of tokens from the previous step, we're now constructing a tree. And not just any tree, we're constructing a so-called **abstract syntax tree** (AST).
 
-Basically, we're now recognizing the language structures of the programming language, like definitions, declarations, control flow statements, expressions, etc. 
+Basically, we're now recognizing the language structures of the programming language, like definitions, declarations, control flow statements, expressions, type casts, etc. 
 
-If you want to view the AST clang generated for some source file, you can do that using `clang -Xclang -ast-dump -fsyntax-only source-file.c`.
+{{< img name="ast-dump" lazy=true >}}
 
-{{< img name="ast" lazy=true >}}
+The above image shows the AST for the example C program in [3.1](#31-lexer). `<invalid sloc>` means `invalid source location`. The nodes with `<invalid sloc>` are "imaginary", they don't have any corresponding source location and were added by clang after the fact.
+
+In the AST we can clearly recognize the structure of the hello world program above.
+- The function declaration `int main(int, char **)` and the names of the two arguments, `argc` & `argv` (`FunctionDecl` & `ParmVarDecl`)
+- The compound statement `{ ... }` after (`CompoundStmt`)
+- The call to `printf` with some implicit casts (`CallExpr`)
+- Finally, the `return 0` (`ReturnStmt`)
+
+#### Ambiguity
+
+The parser has some predefined rules, like `function-declaration = type identifier ( parameter-list ) ...`. Those rules it tries to match against the tokens and that way clang will build the AST. However, in practice it's not that easy. For example: in C there's two ways you can parse `a * b`.
+- Either `a` and `b` are variables and that expression is a multiplication. 
+- Or, `a` is a type name, and `a * b` is the declaration of a variable `b` with type `a*` (pointer to `a`)
+
+So to be able to parse this correctly, you need to know beforehand if `a` is a type or a variable. In C++ it's even more complicated. There's a saying that "C is hard to parse and C++ is impossible to parse." The C++ grammar is [ambiguous](https://en.wikipedia.org/wiki/Most_vexing_parse), [C++ templates are turing complete](http://port70.net/~nsz/c/c%2B%2B/turing.pdf) and parsing it is [literally undecidable](https://blog.reverberate.org/2013/08/parsing-c-is-literally-undecidable.html). That's why Clang has hand-written parsers for both C and C++.
+
+The parser works very closely together with the **semantic analyzer** (Sema). The sema will do things like inferring types, adding type casts, doing validity checks or throwing warnings. For example, warnings about unused code or infinite self-recursion will be thrown by the sema.
+
+## 3.3 IR Generator
+
+The IR generator will now (surprise!) generate rough, unoptimized **IR** using the *AST* from the previous step.
+
+LLVM IR is a full-fledged language with well-defined semantics. The IR below was generated for the hello world program from Section [3.1](#31-lexer). However, I'd say it's workings are a bit out of scope for this blog post, so I'm not going to go into detail here.
+
+```llvm
+@.str = private unnamed_addr constant [15 x i8] c"hello, world!\0A\00", align 1
+
+define dso_local i32 @main(i32 %0, i8** %1) #0 !dbg !8 {
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  %5 = alloca i8**, align 8
+  store i32 0, i32* %3, align 4
+  store i32 %0, i32* %4, align 4
+  call void @llvm.dbg.declare(metadata i32* %4, metadata !17, metadata !DIExpression()), !dbg !18
+  store i8** %1, i8*** %5, align 8
+  call void @llvm.dbg.declare(metadata i8*** %5, metadata !19, metadata !DIExpression()), !dbg !20
+  %6 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([15 x i8], [15 x i8]* @.str, i64 0, i64 0)), !dbg !21
+  ret i32 0, !dbg !22
+}
+
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
+
+declare dso_local i32 @printf(i8*, ...) #2
+
+attributes #0 = { noinline nounwind optnone uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #1 = { nofree nosync nounwind readnone speculatable willreturn }
+attributes #2 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+```
 
 
 
