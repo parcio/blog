@@ -16,21 +16,23 @@ In this post we will take a look at the fundamentals of plotting with `ggplot`. 
 
 After this a introduction in the different plot kinds and how to combine them is given. Closed with a different customisation options. At the end a few tricks a need extending libraries are presented to ease your live for example how to zoom in to a plot or creating a interactive plot.
 
+{{< toc >}}
+
 ## Introduction in R ##
 
 R is a programming language for data analysis and statistics. It is free, and very widely used by professional statisticians. It is also very popular in certain application areas, including bioinformatics. R is a dynamically typed interpreted language, and is typically used interactively. It has many built-in functions and libraries, and is extensible, allowing users to define their own functions and procedures using R, C or Fortran. It also has a simple object system.[1]
 
 `R` can like python be used in two different modes. Once interactive as REPL, to view data easily or a script written in R can be executed. R-Studio offers a great IDE for using this two modes interleaving and many additional features, see section R-Studio for a small show case. If you preferred a more simple approach you can install the `R` interpreter and write the code in your preferred text editor, handy plugins and a few use case examples can be found in section R-from-the-command-line.
 
-The main data structure used in R are `data.frame`. They are like a single spread sheet organized in columns and rows, where the rows can have different types and can be labeled. The content of each column is thereby represented as a vector. The syntax in R is very similar to C but instead of a `;` a line break is used to end a command like in python. 
+The main data structure used in R are `data.frame`. They are like a single spread sheet organized in columns and rows, where the rows can have different types and can be labeled. The content of each column is thereby represented as a vector. The syntax in R is very similar to C but instead of a `;` a line break is used to end a command like in python. Also important to notice is that `R` supplies two kinds of assignments, once the in scope assignment `=` and the global assignment `<-`. `=` is generally used for assigning named parameters in functions, while `<-` is used if you want to set a global variable.
 
 ```R
 # creation of a vector of ints
-age = c(23, 41, 32, 58, 26)
+age <- c(23, 41, 32, 58, 26)
 # [1] 23 41 32 58 26
 
 # creation of a data farme with the columns "Name" and "Age"
-data_frame = data.frame(
+data_frame <- data.frame(
 	Name = c("Jon", "Bill", "Maria", "Ben", "Tina"),
 	Age = age
 )
@@ -40,7 +42,8 @@ data_frame = data.frame(
 # 3 Maria  32
 # 4   Ben  58
 # 5  Tina  26
-
+```
+```R
 # access column by name
 data_frame$Name
 # [1] "Jon" "Bill" "Maria" "Ben" "Tina"
@@ -50,7 +53,25 @@ data_frame$Name[1]
 # "Jon"
 ```
 
-Vectors are constructed with the `c([elem,]...)` method, it will auto deduce the type to used for storing all elements, eg. `c("jon", 3)`  will results in the vector of strings `"jon" "3"`. Like wise data frames are constructed with `data.frame()` function. One way to use this is by passing column name data pairs, like in the example above.
+Vectors are constructed with the `c([elem,]...)` method, it will auto deduce the type to used for storing all elements, e.g. `c("jon", 3)`  will results in the vector of strings `"jon" "3"`. Like wise data frames are constructed with `data.frame()` function. One way to use this is by passing column name data pairs, like in the example above. Operations such as `<`,`>`,`+`,`*` can be applied between different data types. `age < 40` will for example result in a vector of boolean for the results of the comparison. But if the types wont match the more penalized type is used for comparison, with `data_frame$Name < 40` each name is compared against the string `"30"` and is therefore false, because of alphabetic ordering.
+
+```R
+age < 40
+# [1] TRUE FALSE TRUE FALSE TRUE
+```
+```R
+data_frame$Name < 40
+# [1] FALSE FALSE FALSE FALSE FALSE
+```
+```R
+data_frame < 40
+#       Name   Age
+# [1,] FALSE  TRUE
+# [2,] FALSE FALSE
+# [3,] FALSE  TRUE
+# [4,] FALSE FALSE
+# [5,] FALSE  TRUE
+```
 
 In any case if you want a more detailed explanation for an function just use `?<function_name>` like `?data.frame` to see the documentation.
 
@@ -212,9 +233,68 @@ Examples:
 
 ### R from the command line ###
 
-* easy to use
-* install gui extension
-* VSCode and Vim extensions for R
+The pros of using `R` directly from the command line with your favorite text editor is that you do not need to families you with yet another editor
+and that the initial setup time is very small, and you can gradually advance your setup as needed. In this section we will give tips for setting up `R` and
+list some `R` integration extension for common text editors. 
+
+
+#### Installation and Package installation ####
+
+The first step is to install `R`, this can be done via the package manager of your trust or via the CRAN. CRAN is the content system of `R` providing the
+newest stable versions of libraries and also `R` itself. For a list of mirrors please visit <https://cran.rstudio.com/mirrors.html> and select a fitting for you.
+In further we will annotate it as `https://cran.your.selection`. The download of the current `R` binaries can be done via this mirror, just open it in your web-browser.
+You can also use in your R-session the function `choosCRANmirror()` to set the default CRAN for that session via a GUI dialog.
+
+{{<detail-tag "List of Some Mirrors">}}
+**Germany**
+
+* https://mirror.dogado.de/cran/ dogado GmbH
+* https://ftp.gwdg.de/pub/misc/cran/ GWDG Göttingen
+* https://cran.uni-muenster.de/ University of Münster, Germany 
+
+**USA**
+* https://repo.miserver.it.umich.edu/cran/ MBNI, University of Michigan, Ann Arbor, MI
+* http://cran.wustl.edu/ Washington University, St. Louis, MO
+* https://archive.linux.duke.edu/cran/ Duke University, Durham, NC
+{{</detail-tag>}}
+
+To install packages you can then use `install.packages(c("pkg1", "pkg2"), repos = "https://cran.your.selection")`. To not type your repos every time you can use once per session `choosCRANmirror()`, or 
+use the R-config file `.Rprofile` in your home and add the following code:
+```R
+local({
+	r <- getOptions("repos")
+	r["CRAN"] = "https://cran.your.selection"
+	options(repos = r)
+})
+```
+
+You can also use the `.Rprofile` to load a set of libraries you frequently use e.g. `ggplot2`. But conceder that loading a library takes time.
+```R
+library(httpgd)
+library(ggplot2)
+```
+
+#### Sessions ####
+
+The `R`-REPL uses Sessions. Which means if you want to exit `R` with CTRL-D or `q()` you get asked if you want to save the workspace. If you answer with yes, a `.Rhistory` and `.RData` file will be created in your current Directory. If you then start `R` again in this directory all your variables assigned, options set and commands executed will be amiable and you can continue were you stop. To store you workspace data use explicit `save.image()` or with optional `save.image(file="evreything.RData")`, you can also store and load specific R objects you can use the functions `save(obj1, obj2,file="objects.RData")` and `load("objects.RData")` to maybe share your data or create a backup. If you find the prompt at the end annoying you can start `R` with `R --no-save` or `R --save` to automatically answer this prompt, and to not have to type this every time you can use the alias system of your shell.
+
+#### Extensions ####
+
+[radian] is a interactive terminal to use `R` with syntax highlighting and autocompletion for multiple options. For interactive usage this can greatly improve the convenience. Radian requires python3 to run and can easily be installed with `pip install -U radian`
+
+[httpgd] is a way to interactive view your plots. After installing the library you can start a server with `hgd()`. Every time you now have a plot, it will be automatically shown at the specified web address. There you can view the history of plots, changing interactive the zoom level and store the final version in a format you like (eg. SVG, PDF, PNG). This can save a lot of time for fiddling with the correct display parameters or for just viewing intermediate plots, it also avoids problems R might have with your image viewer.
+
+If you like code completion in your editor or environment you need to install the `R` library `languageserver`, this will install a LSP in `R` for R, which can be used from a wide variety of code completion extensions.
+
+##### VS-Code #####
+
+Visual studio Code provides a overview about setting it up for `R`[2]. In short it's required the installation of [httpgd], [radian], the R library `languageserver` and [REditorSupport].
+This will allow to view plots, and run code from your editor. For that you start a R-Terminal need to be started with <Ctrl+Shift+R>`R: Create R terminal`. To which then the current line or a selection of code can be send with <Ctrl+Enter>. For more details please read the official documentation for [Interaction with R terminals] and the priori referenced sources.
+
+##### NVIM #####
+
+For NVIM and VIM I recommend the plugin Nvim-R, which provides, object viewer, syntax highlighting, documentation viewing and despite its name also works for VIM. In addition [httpgd] works good since it's allows to view the plots easily. The short codes to use Nvim-R can be overwhelming, but you in the end you only need a view of them.
+For syntax completion and highlighting my recommandation is to install the R-library `langugaeserver` and use the LSP via the NVIM internal LSP support or for VIM use it via [coc] or similar LSP support plugin. 
 
 ### R with R-Studio ###
 
@@ -298,4 +378,12 @@ ggsave(plot, "plot.pdf", unit="cm", width=8, height=8)
 ## further readings ##
 
 [1]:http://www.mas.ncl.ac.uk/~ndjw1/teaching/sim/R-intro.html
+[2]:https://code.visualstudio.com/docs/languages/r
+[Interaction with R terminals]:https://github.com/REditorSupport/vscode-R/wiki/Interacting-with-R-terminals
 http://r-statistics.co/Complete-Ggplot2-Tutorial-Part1-With-R-Code.html
+https://cran.r-project.org/doc/manuals/r-release/R-admin.html
+[radian]:https://github.com/randy3k/radian
+[httpgd]:https://github.com/nx10/httpgd
+[REditorSupport]:https://marketplace.visualstudio.com/items?itemName=REditorSupport.r
+[Nvim-R]:https://github.com/jalvesaq/Nvim-R
+[coc]:https://github.com/neoclide/coc.nvim
