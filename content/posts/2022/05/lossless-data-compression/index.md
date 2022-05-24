@@ -1,6 +1,6 @@
 +++
 title = "Lossless Data Compression"
-date = "2022-02-20"
+date = "2022-05-24"
 authors = ["yolanda.thiel"]
 tags = []
 +++
