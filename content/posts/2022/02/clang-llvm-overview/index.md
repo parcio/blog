@@ -1,6 +1,6 @@
 +++
 title = "Clang/LLVM Overview"
-date = "2022-02-26"
+date = "2022-05-24"
 authors = ["hannes.winkler"]
 tags = ["LLVM", "Clang", "compiler", "C", "optimization"]
 [[resources]]
@@ -36,7 +36,7 @@ name = "selectiondag-final"
 src = "selectiondag-final.png"
 title = "final SelectionDAG"
 [[resources]]
-name = "codegen-feature-matrix"
+name = "codegen-featur-matrix"
 src = "codegen-feature-matrix.png"
 title = "Feature matrix of the different target code generators. "
 [resources.params]
@@ -246,14 +246,14 @@ But how is that graph built? There are multiple steps involved here:
 
 1. First of all, we're using static mappings from `IR instruction ==> SelectionDAG node` and the control- and dataflow dependencies we can infer from the IR to build an initial, naive SelectionDAG. [^4]
 2. Now we're applying some basic optimizations on it.
-3. The (still naive) SelectionDAG we now have might not even be runnable on the target CPU. Maybe it contains operations that aren't supported or some type doesn't work with the operation used, etc. In other words, it's might be an **illegal** SelectionDAG.  
+3. The (still naive) SelectionDAG we now have might not even be runnable on the target CPU. Maybe it contains operations that aren't supported or some type doesn't work with the operation used, etc. In other words, it might be an **illegal** SelectionDAG.  
   So now, as the first step of making it a legal graph, we're going the **legalize** the types.
-  There's two kinds of modifications we can make to the types here:
+  There are two kinds of modifications we can make to the types here:
     - **type promotion** (converting a small type to a larger one)
     - **type expansion** (splitting up a larger type into multiple smaller ones)
   For example: If the target doesn't support 16-bit integers, we're just going to *promote* it to a 32-bit integer instead.
   Likewise, if it doesn't support 64-bit integers, we're just going to *expand* it to two 32-bit ints instead.
-3. New, we optimize that again. (Mostly to get rid of redundant operations introduced by type promotion / expansion)
+3. Now, we optimize that again. (Mostly to get rid of redundant operations introduced by type promotion / expansion)
 4. After that, we're going to legalize the operations. Targets sometimes have weird, arbitrary constraints for the types that
 can be used for some operations. (x86 does not support byte-conditional moves, PowerPC does not support sign-extending loads from a 16-bit memory location). So we'll apply type promotion and type expansion or some custom, target-specific modifications here to make the SelectionDAG legal.
 5. Optimize again.
@@ -282,7 +282,7 @@ After that comes a machine-code based optimization phase.
 
 Now we can finally emit the optimized machine code, in whatever format the user desires. Some targets support writing `.o` files directly, for others assembly will be written and assembled into an `.o` file as an intermediate step. Note that to be able to run this file, we also need to link it, which clang can do for you as well. (Not clang itself, clang will just call a linker)
 
-{{< img name="codegen-feature-matrix" lazy="true" >}}
+{{< img name="codegen-featur-matrix" lazy="true" >}}
 
 # 6 Optimizations
 ### Loop unrolling
