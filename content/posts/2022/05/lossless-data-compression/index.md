@@ -1,8 +1,8 @@
 +++
-title = "Lossless Data Compression"
+title = "Lossless data compression"
 date = "2022-05-24"
 authors = ["yolanda.thiel"]
-tags = ["Teaching", "EPEA 2021"]
+tags = ["Teaching", "EPEA 2021", "Compression"]
 +++
 
 This post is an introduction to lossless data compression in which we will explore the approaches of entropy-based/statistical as well as dictionary-based compression and explain some of the most common algorithms.

@@ -31,7 +31,7 @@ Let's look at and compare three different languages and what they natively provi
 C, C++ and Rust -- compiled, systems programming languages -- all provide at least some tools necessary for capturing the current time (with varying precision), something we definitely need to begin measuring our code.
 By going from an older, relatively low-level language[^2], like C, to a newer one like Rust with more high-level abstractions, we will quickly notice a difference in ease of use and amount of options available to us while coding (micro) benchmarks.
 
-### As old as&nbsp;`<time.h>`: C and POSIX
+### As old as `<time.h>`: C and POSIX
 
 Let's begin with C and its [`time.h`](https://en.cppreference.com/w/c/chrono) facilities:
 
@@ -101,7 +101,7 @@ The type used to represent the microseconds, `suseconds_t`, is usually defined a
 
 The second argument of `gettimeofday()` can be used to get information about the timezone of the system though it is obsolete and flawed, hence why just passing in `NULL` is recommended[^4].
 
-### A new dawn: C++ and&nbsp;`<chrono>`
+### A new dawn: C++ and `<chrono>`
 
 With the arrival of C++11, a more flexible collection of types for time tracking was added to the standard.
 Including the most recent changes to [`<chrono>`](https://en.cppreference.com/w/cpp/chrono) as part of C++20, the following clock types are available:
@@ -418,7 +418,7 @@ Had we not done the previous steps of preventing certain optimizations and keepi
 
 `perf` provides many other options like setting tracepoints and even doing kernel microbenchmarks, which we aren't going to look at in this post, though it is certainly worth looking at what else it has to offer.
 
-### The underlying kernel interface:&nbsp;`perf_events`
+### The underlying kernel interface: `perf_events`
 
 Since the profiler tool is part of the Linux kernel, it has mostly direct access to any events the kernel picks up on.
 This is done via something called `perf_events` -- an interface exported by the Linux kernel.
