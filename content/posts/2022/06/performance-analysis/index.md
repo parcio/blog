@@ -1,6 +1,6 @@
 +++
 title = "An introduction to performance analysis and understanding profilers"
-date = "2022-05-24"
+date = "2022-06-14"
 authors = ["kevin.kulot"]
 tags = ["Teaching", "EPEA 2021", "Efficiency", "Profiling"]
 +++
@@ -409,7 +409,7 @@ Depending on if we want the function hierarchy to go from callee to caller or vi
 The call graph, going from caller to callee, looks like this:
 
 <center>
-    <img src="perf_example.png" width="75%" height="75%">
+    <img src="perf-example.png" width="75%" height="75%">
 </center>
 
 We can now see relative timings for every function call made, see which functions call other functions and get a more general idea of where a bottleneck might be.
