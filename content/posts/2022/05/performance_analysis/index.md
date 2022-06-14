@@ -12,9 +12,9 @@ Where performance matters, we want to make sure we know what to look for and wha
 
 > "*Premature optimization is the root of all evil.*"
 
-A famous quote by Tony Hoare, later popularised by Donald Knuth, shows why measuring performance is so important. If we try to optimize our code before knowing *where* it may be needed, it might end up hindering us in the long run. Trying to be unnecessarily clever, for example replacing divisions and multiplications by powers of two with bit shifts, might just end up hurting readability while not providing any gains in performance as most compilers nowadays are able to do such trivial optimizations. 
+A famous quote by Tony Hoare, later popularised by Donald Knuth, shows why measuring performance is so important. If we try to optimize our code before knowing *where* it may be needed, it might end up hindering us in the long run. Trying to be unnecessarily clever, for example replacing divisions and multiplications by powers of two with bit shifts, might just end up hurting readability while not providing any gains in performance as most compilers nowadays are able to do such trivial optimizations.
 
-We want to do **benchmarks**, more precisely **micro benchmarks**. Micro benchmarks are for measuring small parts, like single functions or routines of our code, inspecting hot loops and investigate small things such as cache misses or assembly code generation. Before we perform these micro benchmarks, let's introduce a dichotomy[^1] of tools. 
+We want to do **benchmarks**, more precisely **micro benchmarks**. Micro benchmarks are for measuring small parts, like single functions or routines of our code, inspecting hot loops and investigate small things such as cache misses or assembly code generation. Before we perform these micro benchmarks, let's introduce a dichotomy[^1] of tools.
 
 **In-Code Benchmarking:** Measuring / performing benchmarks within the language by leveraging existing functions and libraries.
 
@@ -22,7 +22,7 @@ We want to do **benchmarks**, more precisely **micro benchmarks**. Micro benchma
 
 ## In-Code Benchmarking
 
-Let's look at and compare three different languages and what they natively provide for benchmarking and measuring performance. C, C++ and Rust -- compiled, systems programming languages -- all provide at least some tools necessary for capturing the current time (with varying precision), something we definitely need to begin measuring our code. By going from an older, relatively low-level language[^2], like C, to a newer one like Rust with more high-level abstractions, we will quickly notice a difference in ease of use and amount of options available to us while coding (micro-)benchmarks.    
+Let's look at and compare three different languages and what they natively provide for benchmarking and measuring performance. C, C++ and Rust -- compiled, systems programming languages -- all provide at least some tools necessary for capturing the current time (with varying precision), something we definitely need to begin measuring our code. By going from an older, relatively low-level language[^2], like C, to a newer one like Rust with more high-level abstractions, we will quickly notice a difference in ease of use and amount of options available to us while coding (micro-)benchmarks.
 
 ### As old as&nbsp;`<time.h>`: C and POSIX
 
@@ -36,16 +36,16 @@ int main(void) {
     time_t start = time(NULL);
     // expensive operation
     time_t end = time(NULL);
-    
+
     printf("%.2f seconds\n", (double) end - start);
-    
+
     return 0;
 }
 ```
 
-`time(...)` returns the current calendar time, which is almost always represented as the number of seconds since [the Epoch (00:00:00 UTC 01/01/1970)](https://en.wikipedia.org/wiki/Unix_time), as a `time_t` object. The full function signature is `time_t time(time_t* arg)` where `arg` acts as an out-parameter storing the same information as the return value, which is why we pass in `NULL`. Since `time_t` is just a typedef for an unspecified (implementation-defined) real type, we can compute the difference between `start` and `end` to get the elapsed time in seconds. This essentially measures so-called "wall clock time", something we will come back to later. 
+`time(...)` returns the current calendar time, which is almost always represented as the number of seconds since [the Epoch (00:00:00 UTC 01/01/1970)](https://en.wikipedia.org/wiki/Unix_time), as a `time_t` object. The full function signature is `time_t time(time_t* arg)` where `arg` acts as an out-parameter storing the same information as the return value, which is why we pass in `NULL`. Since `time_t` is just a typedef for an unspecified (implementation-defined) real type, we can compute the difference between `start` and `end` to get the elapsed time in seconds. This essentially measures so-called "wall clock time", something we will come back to later.
 
-One alternative time measuring facility is the `clock_t clock(void)` function. Unlike `time()`, it returns the approximate processor time, or "cpu time", of the current process. Similar to `time_t`, the returned value is also an implementation-defined real type[^3] from which we can calculate a difference. This "cpu time" may differ from "wall clock time" as it may advance faster or slower depending on the resources allocated by the operating system. 
+One alternative time measuring facility is the `clock_t clock(void)` function. Unlike `time()`, it returns the approximate processor time, or "cpu time", of the current process. Similar to `time_t`, the returned value is also an implementation-defined real type[^3] from which we can calculate a difference. This "cpu time" may differ from "wall clock time" as it may advance faster or slower depending on the resources allocated by the operating system.
 
 If we want a little more precision while still using C, the C POSIX library offers additional functionality. For example, [`gettimeofday()`](https://man7.org/linux/man-pages/man2/gettimeofday.2.html), provided by the `sys/time.h` header, lets us measure with microsecond accuracy:
 
@@ -104,7 +104,7 @@ With the arrival of C++11, a more flexible collection of types for time tracking
 
 {{< /columns >}}
 
-Now this might seem overwhelming at first but when it comes to benchmarking, the only clock types we need to look at are the ones added in C++11. Out of these, `std::chrono::steady_clock` is the most suitable for measuring intervals. To understand why, let's take a quick detour and talk about what a `Clock` is according to the C++ standard and the differences between the aforementioned three types of clocks. In its most basic form, a clock type needs to have a starting point and a tick rate. A more precise definition of the requirements needed to satisfy being a `Clock` type can be found [here](https://en.cppreference.com/w/cpp/named_req/Clock). 
+Now this might seem overwhelming at first but when it comes to benchmarking, the only clock types we need to look at are the ones added in C++11. Out of these, `std::chrono::steady_clock` is the most suitable for measuring intervals. To understand why, let's take a quick detour and talk about what a `Clock` is according to the C++ standard and the differences between the aforementioned three types of clocks. In its most basic form, a clock type needs to have a starting point and a tick rate. A more precise definition of the requirements needed to satisfy being a `Clock` type can be found [here](https://en.cppreference.com/w/cpp/named_req/Clock).
 
 Now, let's compare the different clocks:
 | `std::chrono::system_clock `  | `std::chrono::steady_clock `   | `std::chrono::high_resolution_clock `      |
@@ -113,7 +113,7 @@ Now, let's compare the different clocks:
 | - system time can be adjusted   | - tick frequency constant        | - alias of one of the other two                     |
 | - maps to C-style time          | - not related to wall clock time | - should be avoided (implementation-defined) |
 
-**Wall clock time** is the actual, real time a physical clock (be it a watch or an actual wall clock) would measure. A wall clock may be subject to unexpected changes which would invalidate any measurements taken with it. It has the ability to jump backward or forward in time through manual adjustments or automatic synchronization with NTP (Network Time Protocol). This makes `std::chrono::system_clock` biased and unfit for anything but giving us the current time. 
+**Wall clock time** is the actual, real time a physical clock (be it a watch or an actual wall clock) would measure. A wall clock may be subject to unexpected changes which would invalidate any measurements taken with it. It has the ability to jump backward or forward in time through manual adjustments or automatic synchronization with NTP (Network Time Protocol). This makes `std::chrono::system_clock` biased and unfit for anything but giving us the current time.
 
 **Monotonic clocks**, like `std::chrono::steady_clock`, on the other hand cannot jump forward or backward in time and their tick rate is constant. `std::chrono::steady_clock` uses the system startup time as its Epoch and will never be adjusted. It acts like a stopwatch, perfect for measuring intervals but not for telling time.
 
@@ -130,7 +130,7 @@ int main() {
     auto start = steady_clock::now();
     // expensive operation
     auto end = steady_clock::now();
-    
+
     auto duration = duration_cast<milliseconds>(end - start).count();
     std::cout << duration << "ms\n";
 
@@ -151,7 +151,7 @@ fn main() {
     let start = Instant::now();
     // expensive operation
     let end = start.elapsed();
-    
+
     println!("{}ms", end.as_millis());
 }
 ```
@@ -166,7 +166,7 @@ So far, we only looked at what C, C++ and Rust offer us in terms of measuring ti
 
 Things like defining start and end points, computing their difference, being aware of clock types might be something to keep in mind regardless of the language used. But what we did so far was not *benchmarking*. In order for us to proclaim we performed a successful benchmark, we need to measure not only once but many more times. We need to calculate the mean or median of these multiple measurements. We want to rule out any random or statistical errors. Ideally, we also want to not have to define start and end points manually like we did before for every single measurement.
 
-This is where (micro-)benchmarking libraries come in handy. While many exist for every language, we are going to stick with C++ for now and take a look at [**Google Benchmark**](https://github.com/google/benchmark). This open-source microbenchmarking library from Google makes timing of small code snippets much easier and allows us to get good statistical averages through repeated sampling of said snippets. 
+This is where (micro-)benchmarking libraries come in handy. While many exist for every language, we are going to stick with C++ for now and take a look at [**Google Benchmark**](https://github.com/google/benchmark). This open-source microbenchmarking library from Google makes timing of small code snippets much easier and allows us to get good statistical averages through repeated sampling of said snippets.
 
 The example in their `README.md` shows the basic idea:
 ```c++ {linenos=true}
@@ -192,7 +192,7 @@ BENCHMARK(BM_StringCopy);
 BENCHMARK_MAIN();
 ```
 
-Any method that we wish to benchmark has to be marked as `static`. Furthermore, they also need to have a mutable reference to a `benchmark::State` as an argument. By iterating over the state object with the code we wish to benchmark, we "add" to the sampling process. The `BENCHMARK` macro registers the functions as a benchmark while the `BENCHMARK_MAIN()` macro generates an appropriate `main()` function. 
+Any method that we wish to benchmark has to be marked as `static`. Furthermore, they also need to have a mutable reference to a `benchmark::State` as an argument. By iterating over the state object with the code we wish to benchmark, we "add" to the sampling process. The `BENCHMARK` macro registers the functions as a benchmark while the `BENCHMARK_MAIN()` macro generates an appropriate `main()` function.
 
 If we compile the code as follows:
 ```
@@ -236,7 +236,7 @@ static void BM_StringCreation(benchmark::State& state) {
 }
 ```
 
-This allows us to still benchmark the creation of an empty string while using `-O3`. There are many other ways to prevent certain optimizations from happening that would invalidate a benchmark though this and `benchmark::ClobberMemory()` are the ones Google Benchmark provides.[^5] Now, our table looks much more sensible: 
+This allows us to still benchmark the creation of an empty string while using `-O3`. There are many other ways to prevent certain optimizations from happening that would invalidate a benchmark though this and `benchmark::ClobberMemory()` are the ones Google Benchmark provides.[^5] Now, our table looks much more sensible:
 ```
 2022-01-07T21:26:18+01:00
 Running ./main
@@ -249,7 +249,7 @@ BM_StringCreation      0.681 ns        0.688 ns   1000000000
 BM_StringCopy           4.04 ns         3.99 ns    172307692
 ```
 
-Unwanted optimizations are just one thing to be aware of when doing benchmarks. Depending on what is tested, we might want clear our cache before a run, do warmup runs if I/O is involved or compare the same function with differing parameters -- so called "parameterized benchmarks". Many benchmarking libraries will have all of these advanced features and more but they are out of scope for this post. For quick tests and comparisons, [**Quick Bench**](https://quick-bench.com/#), an online compiler using Google Benchmark, is a great alternative. 
+Unwanted optimizations are just one thing to be aware of when doing benchmarks. Depending on what is tested, we might want clear our cache before a run, do warmup runs if I/O is involved or compare the same function with differing parameters -- so called "parameterized benchmarks". Many benchmarking libraries will have all of these advanced features and more but they are out of scope for this post. For quick tests and comparisons, [**Quick Bench**](https://quick-bench.com/#), an online compiler using Google Benchmark, is a great alternative.
 
 ## Profilers -- more than just time
 So far, we only measured the time it took for a program or a certain function to run. Going back to the quote presented at the beginning: in order for us to optimize our code, we need to know *what* to optimize. Just benchmarking some functions will not tell us where a potential bottleneck might be -- we need more information about our program.
@@ -268,7 +268,7 @@ There are many different profilers out there, each specialized for their own use
 - Event-based profilers -- only collect statistics when certain pre-defined events happen
 - Statistical profilers -- operate via sampling by probing the call stack through interrupts
 
-This classification is not mutually exclusive -- a profiler can offer any one or all of these features. We are going to take a look at one tool in particular: `perf`. 
+This classification is not mutually exclusive -- a profiler can offer any one or all of these features. We are going to take a look at one tool in particular: `perf`.
 
 ### `perf`: jack of all trades
 The reason why `perf` is a good first choice is that almost everyone (that uses Linux[^7]) already has it as it is part of the Kernel. It also does many of the aforementioned things just out of the box. Let's start by creating a statistical profile:
@@ -279,14 +279,14 @@ $ perf stat ./peekng encode 123.png teSt secret
 ```
  Performance counter stats for './peekng encode 123.png teSt secret':
 
-              2,54 msec task-clock:u              #    0,287 CPUs utilized          
-                 0      context-switches:u        #    0,000 /sec                   
-                 0      cpu-migrations:u          #    0,000 /sec                   
-               187      page-faults:u             #   73,490 K/sec                  
-         4.724.914      cycles:u                  #    1,857 GHz                    
-         5.977.214      instructions:u            #    1,27  insn per cycle         
-         1.103.539      branches:u                #  433,686 M/sec                  
-            18.837      branch-misses:u           #    1,71% of all branches        
+              2,54 msec task-clock:u              #    0,287 CPUs utilized
+                 0      context-switches:u        #    0,000 /sec
+                 0      cpu-migrations:u          #    0,000 /sec
+               187      page-faults:u             #   73,490 K/sec
+         4.724.914      cycles:u                  #    1,857 GHz
+         5.977.214      instructions:u            #    1,27  insn per cycle
+         1.103.539      branches:u                #  433,686 M/sec
+            18.837      branch-misses:u           #    1,71% of all branches
 
        0,008852233 seconds time elapsed
 
@@ -313,20 +313,20 @@ Usually, the `-g` flag will suffice to create the graph but to keep the frame po
 
 We can now see relative timings for every function call made, see which functions call other functions and get a more general idea of where a bottleneck might be. Plus, `perf` also allows us to look at the assembly of a chosen function call by pressing the <kbd>A</kbd> key annotated with the frequency each instruction is called with. Had we not done the previous steps of preventing certain optimizations and keeping debug symbols, this graph would be full of mangled function names and call hierarchies going deep into system calls.
 
-`perf` provides many other options like setting tracepoints and even doing kernel microbenchmarks, which we aren't going to look at in this post, though it is certainly worth looking at what else it has to offer. 
+`perf` provides many other options like setting tracepoints and even doing kernel microbenchmarks, which we aren't going to look at in this post, though it is certainly worth looking at what else it has to offer.
 
-### The underlying kernel interface:&nbsp;`perf_events`  
+### The underlying kernel interface:&nbsp;`perf_events`
 Since the profiler tool is part of the Linux kernel, it has mostly direct access to any events the kernel picks up on. This is done via something called `perf_events` -- an interface exported by the Linux kernel. It can measure events from different sources depending on the subcommand that was run.
 
-**Software events** are pure kernel counters, utilized in part for `perf stat`. They include such things as context-switches, page faults, etc. 
+**Software events** are pure kernel counters, utilized in part for `perf stat`. They include such things as context-switches, page faults, etc.
 
 **Hardware events** are events stemming from the processor itself and its PMU (Performance Monitoring Unit). The PMU provides a list of michro-architectural events like cpu cycles, cache misses and some others.
 
 **Tracepoint events**, implemented via the `ftrace` kernel infrastructure, provide a way to interface with certain syscalls when tracing is required.
 
-For a full list of possible events, see the [perf wiki](https://perf.wiki.kernel.org/index.php/Tutorial). The statistical profile we generated earlier came together through `perf` keeping a running count during execution of these supported events. `perf_events` uses, as the name suggests, *event-based sampling*. This means that every time a certain event happens, the sampling counter is increased. Which event is chosen depends on how we intend to use `perf`. The `record` subcommand, for example, uses something called the `cycles` event as its sampling event. The kernel maps this event to a hardware event on the PMU which depends on the manufacturer of the processor. 
+For a full list of possible events, see the [perf wiki](https://perf.wiki.kernel.org/index.php/Tutorial). The statistical profile we generated earlier came together through `perf` keeping a running count during execution of these supported events. `perf_events` uses, as the name suggests, *event-based sampling*. This means that every time a certain event happens, the sampling counter is increased. Which event is chosen depends on how we intend to use `perf`. The `record` subcommand, for example, uses something called the `cycles` event as its sampling event. The kernel maps this event to a hardware event on the PMU which depends on the manufacturer of the processor.
 
-Once the sampling counter overflows, a sample is recorded. The instruction pointer then stores where the program was interrupted. Unfortunately, the instruction pointer may not point at where the overflow happened but rather at where the PMU was interrupted, making it possible that the wrong instructions get counted. This is why one always needs to be cautious when looking at graphs such as generated assembly annotated with the frequency of its execution as it might just be one or two instructions off.      
+Once the sampling counter overflows, a sample is recorded. The instruction pointer then stores where the program was interrupted. Unfortunately, the instruction pointer may not point at where the overflow happened but rather at where the PMU was interrupted, making it possible that the wrong instructions get counted. This is why one always needs to be cautious when looking at graphs such as generated assembly annotated with the frequency of its execution as it might just be one or two instructions off.
 
 [^1]: "a division or contrast between two things that are or are represented as being opposed or entirely different."
 [^2]: https://queue.acm.org/detail.cfm?id=3212479
