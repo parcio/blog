@@ -7,7 +7,7 @@ tags = ["Teaching", "EPEA 2021", "Clang", "LLVM"]
 [[resources]]
 name = "compiler-terminology"
 src = "compiler-terminology.png"
-title = "Compiler Terminology"
+title = "Compiler terminology"
   [resources.params]
     credits = "[Ray Toal, Intro to Compilers](https://cs.lmu.edu/~ray/images/staticcompilation.png) (edited) (License: unknown)"
 
