@@ -60,11 +60,11 @@ A computer (or CPU, rather) executes binary **machine code**. The human-readable
 There are many more compilers than GCC and Clang, for a wide variety of programming languages.
 
 One can distinguish between two kinds of compilers:
-1. **AOT (ahead-of-time) compilers.**  
+1. **AOT (ahead-of-time) compilers.**
   These are compilers where all of the source code is compiled to target code before the program is run.
   Basically, every C/C++ compiler is an AOT compiler for example.
-2. **JIT (just-in-time) compilers.**  
-  JIT compilers compile code even *while* the program is running.  
+2. **JIT (just-in-time) compilers.**
+  JIT compilers compile code even *while* the program is running.
   Examples: [chromiums javascript engine](https://v8.dev/), [dart](https://dart.dev/overview), [LuaJIT](https://luajit.org/)
 
 At first, this sounds like JIT is a lot slower than AOT compilation but that's not necessarily true. JIT compilers have more information about the machine/CPU they're targetting and can take that into account when compiling. AOT compilers on the other hand mostly produce code for the "lowest common denominator"[^1], if you don't explicitly tell it for what target it should tune the code. So even if you have the very latest Intel 12th gen CPU with the very latest feature set, your compiler will not make use of those features when targetting "just any x64 machine".
@@ -121,7 +121,7 @@ The lexer only does very simple recognition of the basic syntactical building bl
 
 Using the list of tokens from the previous step, we're now constructing a tree. And not just any tree, we're constructing a so-called **abstract syntax tree** (AST).
 
-Basically, we're now recognizing the language structures of the programming language, like definitions, declarations, control flow statements, expressions, type casts, etc. 
+Basically, we're now recognizing the language structures of the programming language, like definitions, declarations, control flow statements, expressions, type casts, etc.
 
 {{< img name="ast-dump" lazy=true >}}
 
@@ -136,7 +136,7 @@ In the AST we can clearly recognize the structure of the hello world program abo
 #### Ambiguity
 
 The parser has some predefined rules, like `function-declaration = type identifier ( parameter-list ) ...`. Those rules it tries to match against the tokens and that way clang will build the AST. However, in practice it's not that easy. For example: in C there's two ways you can parse `a * b`.
-- Either `a` and `b` are variables and that expression is a multiplication. 
+- Either `a` and `b` are variables and that expression is a multiplication.
 - Or, `a` is a type name, and `a * b` is the declaration of a variable `b` with type `a*` (pointer to `a`)
 
 So to be able to parse this correctly, you need to know beforehand if `a` is a type or a variable. In C++ it's even more complicated. There's a saying that "Parsing C is hard and parsing C++ is impossible." The C++ grammar is [ambiguous](https://en.wikipedia.org/wiki/Most_vexing_parse), [C++ templates are turing complete](http://port70.net/~nsz/c/c%2B%2B/turing.pdf) and parsing it is [literally undecidable](https://blog.reverberate.org/2013/08/parsing-c-is-literally-undecidable.html). That's one of the reasons why Clang has hand-written parsers for both C and C++.
@@ -180,7 +180,7 @@ Now that we have the *IR*, we can **optimize** it.  What does "optimizing" even 
 
 Making it run faster is the usual goal, that's achievable for example by combining operations, reducing function calls, resolving recursions, etc. Making the finished program binaries smaller is often done in embedded environment, where you don't have too much space available.
 
-A single "step" of optimization is called an **optimization pass**. Usually when employing optimizations, you'll bundle a bunch of these together in chain. The order is important too: Some optimization passes rely on that some other optimization pass has run before them (that maybe annotated the IR with some analysis info), others produce better results when some other optimization pass has run before them. But that's mostly opaque to the user, clang will do the right thing for you when you just use the `-O...` commandline argument. 
+A single "step" of optimization is called an **optimization pass**. Usually when employing optimizations, you'll bundle a bunch of these together in chain. The order is important too: Some optimization passes rely on that some other optimization pass has run before them (that maybe annotated the IR with some analysis info), others produce better results when some other optimization pass has run before them. But that's mostly opaque to the user, clang will do the right thing for you when you just use the `-O...` commandline argument.
 
 There's 3 kinds of optimization passes:
 
@@ -221,7 +221,7 @@ As a developer, usually you want your programs to run fast. So why don't we alwa
 - For large projects, it'll increase compile time. In many cases, it might still be worth it, but others may not want to do that.
 - Might increase program binary size.
 
-Okay, so the problem with `-Ofast` is mainly non-compliant math. So why don't we just always use `-O3`? Why is there a `-O2` then?  
+Okay, so the problem with `-Ofast` is mainly non-compliant math. So why don't we just always use `-O3`? Why is there a `-O2` then?
 It turns out that's a pretty good question. `-O3` is basically the same as `-O2`. In the LLVM I tested, `-O3` enables two more optimization passes than `-O2` and for one of them it says in the code [`FIXME: It isn't at all clear why this should be limited to -O3.`](https://github.com/llvm/llvm-project/blob/2b46417aa2d42d5d2a14df1675cfee547fd46556/llvm/lib/Passes/PassBuilderPipelines.cpp#L755).
 
 Okay, now that we have optimized the IR, we can go on to the next step:
@@ -246,7 +246,7 @@ But how is that graph built? There are multiple steps involved here:
 
 1. First of all, we're using static mappings from `IR instruction ==> SelectionDAG node` and the control- and dataflow dependencies we can infer from the IR to build an initial, naive SelectionDAG. [^4]
 2. Now we're applying some basic optimizations on it.
-3. The (still naive) SelectionDAG we now have might not even be runnable on the target CPU. Maybe it contains operations that aren't supported or some type doesn't work with the operation used, etc. In other words, it might be an **illegal** SelectionDAG.  
+3. The (still naive) SelectionDAG we now have might not even be runnable on the target CPU. Maybe it contains operations that aren't supported or some type doesn't work with the operation used, etc. In other words, it might be an **illegal** SelectionDAG.
   So now, as the first step of making it a legal graph, we're going the **legalize** the types.
   There are two kinds of modifications we can make to the types here:
     - **type promotion** (converting a small type to a larger one)
