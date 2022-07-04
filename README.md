@@ -1,5 +1,7 @@
 # ParCIO Blog
 
+[![CI](https://github.com/parcio/blog/workflows/CI/badge.svg)](https://github.com/parcio/blog/actions)
+
 The ParCIO blog is generated using [Hugo](https://gohugo.io/).
 
 ## Create New Post
