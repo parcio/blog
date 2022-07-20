@@ -1,5 +1,5 @@
 +++
-title = "Rust for Python developers: Using basic Rust to optimize your Python code"
+title = "Rust for Python developers: Using Rust to optimize your Python code"
 date = "2022-07-20"
 authors = ["david.hausmann"]
 tags = ["Teaching", "EPEA 2021", "Rust", "Python"]
