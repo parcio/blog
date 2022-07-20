@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html
+  itemscope
+  itemtype="http://schema.org/WebPage"
+  lang="en"
+  class="color-toggle-hidden"
+  
+>
+  <head>
+    <meta charset="UTF-8" />
+<meta name="referrer" content="no-referrer" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="generator" content="Hugo 0.92.2" />
+  <meta name="description" content="Where performance matters, we want to make sure we know what to look for and what to optimize. For that we need to measure our code by analyzing its performance with tools either provided by the language or external ones called “profilers”. This post intends to give an overview on both of these methods while introducing some tools – like Google Benchmark and perf – and explaining their functionality." />
+  <meta name="keywords" content="ParCIO,parallel computing,parallel I/O,parallel systems,high-performance computing,storage systems,file systems,parallel programming" />
+    <meta name="author" content="Kevin Kulot" />
+
+    <title>An introduction to performance analysis and understanding profilers | Parallel Computing and I/O Blog</title>
+
+    <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+<link
+  rel="icon"
+  type="image/png"
+  sizes="32x32"
+  href="/favicon/favicon-32x32.png"
+/>
+<link
+  rel="icon"
+  type="image/png"
+  sizes="16x16"
+  href="/favicon/favicon-16x16.png"
+/>
+
+    
+
+    
+  <meta
+    property="og:title"
+    content="An introduction to performance analysis and understanding profilers"
+  />
+  <meta property="og:site_name" content="Parallel Computing and I/O Blog" />
+  <meta property="og:description" content="Where performance matters, we want to make sure we know what to look for and what to optimize. For that we need to measure our code by analyzing its performance with tools either provided by the language or external ones called “profilers”. This post intends to give an overview on both of these methods while introducing some tools – like Google Benchmark and perf – and explaining their functionality." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://blog.parcio.de/posts/2022/06/performance-analysis/" />
+
+<meta property="article:section" content="Posts" />
+    <meta
+      property="article:published_time"
+      content="2022-06-14T00:00:00+00:00"
+    />
+    <meta
+      property="article:modified_time"
+      content="2022-06-14T00:00:00+00:00"
+    />
+
+
+  <meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="An introduction to performance analysis and understanding profilers" />
+  <meta name="twitter:description" content="Where performance matters, we want to make sure we know what to look for and what to optimize. For that we need to measure our code by analyzing its performance with tools either provided by the language or external ones called “profilers”. This post intends to give an overview on both of these methods while introducing some tools – like Google Benchmark and perf – and explaining their functionality." />
+
+<script type="application/ld+json">
+  {
+      "@context": "http://schema.org",
+      "@type": "BlogPosting",
+      "articleSection": "Posts",
+      "name": "An introduction to performance analysis and understanding profilers",
+      "url" : "https://blog.parcio.de/posts/2022/06/performance-analysis/",
+      "headline": "An introduction to performance analysis and understanding profilers",
+      "description": "Where performance matters, we want to make sure we know what to look for and what to optimize. For that we need to measure our code by analyzing its performance with tools either provided by the language or external ones called “profilers”. This post intends to give an overview on both of these methods while introducing some tools – like Google Benchmark and perf – and explaining their functionality.",
+      "wordCount" : "3626",
+      "license": "CC BY-SA 4.0",
+      "inLanguage": "en",
+      "isFamilyFriendly": "true",
+      "mainEntityOfPage": {
+          "@type": "WebPage",
+          "@id": "https://blog.parcio.de/posts/2022/06/performance-analysis/"
+      },
+      "keywords" : [ "Teaching" , "EPEA 2021" , "Efficiency" , "Profiling" ],
+      "author" : [
+          {
+              "@type": "Person",
+              "name": "Kevin Kulot"
+          }
+      ],
+      "copyrightHolder" : "Parallel Computing and I\/O Blog",
+      "copyrightYear" : "2022",
+      "dateCreated": "2022-06-14T00:00:00.00Z",
+      "datePublished": "2022-06-14T00:00:00.00Z",
+      "dateModified": "2022-06-14T00:00:00.00Z",
+      "publisher":{
+          "@type":"Organization",
+          "name": "Parallel Computing and I/O Blog",
+          "url": "https://blog.parcio.de/",
+          "logo": {
+              "@type": "ImageObject",
+              "url": "https://blog.parcio.de/brand.svg",
+              "width":"32",
+              "height":"32"
+          }
+      }
+  }
+  </script>
+
+
+    <script src="/js/main-76d70e50.bundle.min.js"></script>
+
+<link
+  rel="preload"
+  as="font"
+  href="/fonts/Metropolis.woff2"
+  type="font/woff2"
+  crossorigin="anonymous"
+/>
+<link
+  rel="preload"
+  as="font"
+  href="/fonts/LiberationSans.woff2"
+  type="font/woff2"
+  crossorigin="anonymous"
+/>
+<link
+  rel="preload"
+  as="font"
+  href="/fonts/GeekblogIcons.woff2"
+  type="font/woff2"
+  crossorigin="anonymous"
+/>
+
+<link
+  rel="preload"
+  href="/main-2a41d6c0.min.css"
+  as="style"
+/>
+<link
+  rel="stylesheet"
+  href="/main-2a41d6c0.min.css"
+  media="all"
+/>
+
+<link
+  rel="preload"
+  href="/mobile-17932c20.min.css"
+  as="style"
+/>
+<link
+  rel="stylesheet"
+  href="/mobile-17932c20.min.css"
+  media="screen and (max-width: 45rem)"
+/>
+
+<link
+  rel="preload"
+  href="/print-8a905a2e.min.css"
+  as="style"
+/>
+<link
+  rel="stylesheet"
+  href="/print-8a905a2e.min.css"
+  media="print"
+/>
+
+<link
+  rel="preload"
+  href="/custom.css"
+  as="style"
+/>
+<link
+  rel="stylesheet"
+  href="/custom.css"
+  media="all"
+/>
+  <link href="https://blog.parcio.de/posts/2022/06/performance-analysis/" rel="canonical" type="text/html" />
+    <link href="https://blog.parcio.de/feed.xml" rel="alternate" type="application/atom+xml" title="Parallel Computing and I/O Blog Atom Feed" />
+
+<!-- Made with Geekblog theme https://github.com/thegeeklab/hugo-geekblog -->
+
+    
+
+  </head>
+
+  <body>
+    
+  <!-- geekblog include: sprites/geekblog.svg -->
+  <svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><defs><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_arrow_back" xmlns="http://www.w3.org/2000/svg"><path d="M31.999 14.035v3.93H7.673l11.134 11.228L16 32 .001 16.001 16 .002l2.807 2.807L7.673 14.037h24.326z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_arrow_left" xmlns="http://www.w3.org/2000/svg"><path d="M7.954 17.965v5.988L.001 16l7.953-7.953v5.988H32v3.93H7.954z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_arrow_right" xmlns="http://www.w3.org/2000/svg"><path d="M24.046 14.035V8.047L31.999 16l-7.953 7.953v-5.988H0v-3.93h24.046z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_bitbucket" xmlns="http://www.w3.org/2000/svg"><path d="M15.905 13.355c.189 1.444-1.564 2.578-2.784 1.839-1.375-.602-1.375-2.784-.034-3.403 1.151-.705 2.818.223 2.818 1.564zm1.907-.361c-.309-2.44-3.076-4.056-5.328-3.042-1.426.636-2.389 2.148-2.32 3.747.086 2.097 2.08 3.815 4.176 3.626s3.729-2.234 3.472-4.331zm4.108-9.315c-.756-.997-2.045-1.169-3.179-1.358-3.214-.516-6.513-.533-9.727.034-1.066.172-2.269.361-2.939 1.323 1.1 1.031 2.664 1.186 4.073 1.358 2.544.327 5.156.344 7.699.017 1.426-.172 3.008-.309 4.073-1.375zm.979 17.788c-.481 1.684-.206 3.953-1.994 4.932-3.076 1.701-6.806 1.89-10.191 1.289-1.787-.327-3.884-.894-4.864-2.578-.43-1.65-.705-3.334-.98-5.018l.103-.275.309-.155c5.121 3.386 12.288 3.386 17.427 0 .808.241.206 1.22.189 1.805zM26.01 4.951c-.584 3.764-1.255 7.51-1.908 11.257-.189 1.1-1.255 1.719-2.148 2.183-3.214 1.615-6.96 1.89-10.483 1.512-2.389-.258-4.829-.894-6.771-2.389-.911-.705-.911-1.908-1.083-2.922-.602-3.523-1.289-7.046-1.719-10.604.206-1.547 1.942-2.217 3.231-2.698C6.848.654 8.686.362 10.508.19c3.884-.378 7.854-.241 11.618.859 1.341.395 2.784.945 3.695 2.097.412.533.275 1.203.189 1.805z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_bookmark" xmlns="http://www.w3.org/2000/svg"><path d="M20.357 5.856q1.157 0 2.043.851t.885 2.008v23.284l-10.212-4.357-10.144 4.357V8.715q0-1.157.885-2.008t2.042-.851h14.502zm5.787 18.859V5.856q0-1.157-.851-2.042t-2.008-.885H8.715q0-1.157.885-2.042t2.043-.885h14.502q1.157 0 2.043.885t.885 2.042v23.216z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_brightness_auto" xmlns="http://www.w3.org/2000/svg"><path d="M16.846 18.938h2.382L15.22 7.785h-2.44L8.772 18.938h2.382l.871-2.44h3.95zm7.087-9.062L27.999 14l-4.066 4.124v5.809h-5.809L14 27.999l-4.124-4.066H4.067v-5.809L.001 14l4.066-4.124V4.067h5.809L14 .001l4.124 4.066h5.809v5.809zm-11.385 4.937L14 10.282l1.452 4.531h-2.904z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_brightness_dark" xmlns="http://www.w3.org/2000/svg"><path d="M14 21.435q3.079 0 5.257-2.178T21.435 14t-2.178-5.257T14 6.565q-1.51 0-3.079.697 1.917.871 3.108 2.701T15.22 14t-1.191 4.037-3.108 2.701q1.568.697 3.079.697zm9.933-11.559L27.999 14l-4.066 4.124v5.809h-5.809L14 27.999l-4.124-4.066H4.067v-5.809L.001 14l4.066-4.124V4.067h5.809L14 .001l4.124 4.066h5.809v5.809z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_brightness_light" xmlns="http://www.w3.org/2000/svg"><path d="M14 21.435q3.079 0 5.257-2.178T21.435 14t-2.178-5.257T14 6.565 8.743 8.743 6.565 14t2.178 5.257T14 21.435zm9.933-3.311v5.809h-5.809L14 27.999l-4.124-4.066H4.067v-5.809L.001 14l4.066-4.124V4.067h5.809L14 .001l4.124 4.066h5.809v5.809L27.999 14z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_check" xmlns="http://www.w3.org/2000/svg"><path d="M8.885 20.197L25.759 3.323l2.24 2.24L8.885 24.677 0 15.792l2.24-2.24z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_check_circle_outline" xmlns="http://www.w3.org/2000/svg"><path d="M14 25.239q4.601 0 7.92-3.319T25.239 14 21.92 6.08 14 2.761 6.08 6.08 2.761 14t3.319 7.92T14 25.239zM14 0q5.784 0 9.892 4.108T28 14t-4.108 9.892T14 28t-9.892-4.108T0 14t4.108-9.892T14 0zm6.441 7.822l1.972 1.972-11.239 11.239L4.207 14l1.972-1.972 4.995 4.995z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_clear" xmlns="http://www.w3.org/2000/svg"><path d="M32 3.222L19.222 16 32 28.778l-3.221 3.221-12.778-12.778L3.223 31.999.002 28.778 12.78 16 .002 3.222 3.223.001l12.778 12.778L28.779.001z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_cloud_off" xmlns="http://www.w3.org/2000/svg"><path d="M9.023 10.5H7q-1.914 0-3.281 1.395t-1.367 3.309 1.367 3.281T7 19.852h11.375zM3.5 4.976l1.477-1.477L24.5 23.022l-1.477 1.477-2.352-2.297H6.999q-2.898 0-4.949-2.051t-2.051-4.949q0-2.844 1.969-4.867t4.758-2.133zm19.086 5.578q2.242.164 3.828 1.832T28 16.351q0 3.008-2.461 4.758l-1.695-1.695q1.805-.984 1.805-3.063 0-1.422-1.039-2.461t-2.461-1.039h-1.75v-.602q0-2.68-1.859-4.539t-4.539-1.859q-1.531 0-2.953.711l-1.75-1.695Q11.431 3.5 14.001 3.5q2.953 0 5.496 2.078t3.09 4.977z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_code" xmlns="http://www.w3.org/2000/svg"><path d="M9.917 24.5a1.75 1.75 0 10-3.501.001 1.75 1.75 0 003.501-.001zm0-21a1.75 1.75 0 10-3.501.001A1.75 1.75 0 009.917 3.5zm11.666 2.333a1.75 1.75 0 10-3.501.001 1.75 1.75 0 003.501-.001zm1.75 0a3.502 3.502 0 01-1.75 3.026c-.055 6.581-4.721 8.039-7.82 9.023-2.898.911-3.846 1.349-3.846 3.117v.474a3.502 3.502 0 011.75 3.026c0 1.932-1.568 3.5-3.5 3.5s-3.5-1.568-3.5-3.5c0-1.294.711-2.424 1.75-3.026V6.526A3.502 3.502 0 014.667 3.5c0-1.932 1.568-3.5 3.5-3.5s3.5 1.568 3.5 3.5a3.502 3.502 0 01-1.75 3.026v9.06c.93-.456 1.914-.766 2.807-1.039 3.391-1.075 5.323-1.878 5.359-5.687a3.502 3.502 0 01-1.75-3.026c0-1.932 1.568-3.5 3.5-3.5s3.5 1.568 3.5 3.5z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_contacts" xmlns="http://www.w3.org/2000/svg"><path d="M22.688 22.688v-2q0-1.5-2.281-2.438t-4.406-.938-4.406.938-2.281 2.438v2h13.375zM16 9q-1.25 0-2.125.875T13 12t.875 2.125T16 15t2.125-.875T19 12t-.875-2.125T16 9zm10.688-3.687q1.063 0 1.844.813t.781 1.875v16q0 1.063-.781 1.875t-1.844.813H5.313q-1.063 0-1.844-.813t-.781-1.875v-16q0-1.063.781-1.875t1.844-.813h21.375zM5.313 32v-2.688h21.375V32H5.313zM26.688 0v2.688H5.313V0h21.375z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_copy" xmlns="http://www.w3.org/2000/svg"><path d="M23.502 25.438V7.626H9.562v17.812h13.94zm0-20.315q1.013 0 1.787.745t.774 1.757v17.812q0 1.013-.774 1.787t-1.787.774H9.562q-1.013 0-1.787-.774t-.774-1.787V7.625q0-1.013.774-1.757t1.787-.745h13.94zM19.689 0v2.562H4.438v17.812H1.936V2.562q0-1.013.745-1.787T4.438.001h15.251z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_create" xmlns="http://www.w3.org/2000/svg"><path d="M31.499 7.167l-3.25 3.25-6.666-6.666 3.25-3.25q.5-.5 1.25-.5t1.25.5l4.166 4.166q.5.5.5 1.25t-.5 1.25zM.001 25.333L19.667 5.667l6.666 6.666L6.667 31.999H.001v-6.666z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_dangerous" xmlns="http://www.w3.org/2000/svg"><path d="M21.802 19.833L15.969 14l5.833-5.833-1.969-1.969L14 12.031 8.167 6.198 6.198 8.167 12.031 14l-5.833 5.833 1.969 1.969L14 15.969l5.833 5.833zM19.833 0L28 8.167v11.666L19.833 28H8.167L0 19.833V8.167L8.167 0h11.666z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_date" xmlns="http://www.w3.org/2000/svg"><path d="M27.192 28.844V11.192H4.808v17.652h22.384zm0-25.689q1.277 0 2.253.976t.976 2.253v22.459q0 1.277-.976 2.216t-2.253.939H4.808q-1.352 0-2.291-.901t-.939-2.253V6.385q0-1.277.939-2.253t2.291-.976h1.577V.001h3.23v3.155h12.769V.001h3.23v3.155h1.577zm-3.155 11.267v3.155h-3.23v-3.155h3.23zm-6.46 0v3.155h-3.155v-3.155h3.155zm-6.384 0v3.155h-3.23v-3.155h3.23z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_download" xmlns="http://www.w3.org/2000/svg"><path d="M2.866 28.209h26.269v3.79H2.866v-3.79zm26.268-16.925L16 24.418 2.866 11.284h7.493V.001h11.283v11.283h7.493z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_email" xmlns="http://www.w3.org/2000/svg"><path d="M28.845 9.615v-3.23L16 14.422 3.155 6.385v3.23L16 17.577zm0-6.46q1.277 0 2.216.977T32 6.385v19.23q0 1.277-.939 2.253t-2.216.977H3.155q-1.277 0-2.216-.977T0 25.615V6.385q0-1.277.939-2.253t2.216-.977h25.69z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_error_outline" xmlns="http://www.w3.org/2000/svg"><path d="M14 25.239q4.601 0 7.92-3.319T25.239 14 21.92 6.08 14 2.761 6.08 6.08 2.761 14t3.319 7.92T14 25.239zM14 0q5.784 0 9.892 4.108T28 14t-4.108 9.892T14 28t-9.892-4.108T0 14t4.108-9.892T14 0zm-1.38 6.967h2.761v8.413H12.62V6.967zm0 11.239h2.761v2.826H12.62v-2.826z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_fire" xmlns="http://www.w3.org/2000/svg"><path d="M17.689 21.998q-.32.32-.8.576t-.864.384q-1.152.384-2.272.032t-1.888-.992q-.128-.128-.096-.256t.16-.192q1.216-.384 1.92-1.216t.96-1.792q.192-.896-.064-1.728t-.384-1.728q-.128-.704-.096-1.376t.288-1.312q0-.128.128-.128t.192.064q.384.832.992 1.472t1.28 1.216 1.216 1.248.672 1.568q.064.384.064.704.064.96-.32 1.92t-1.088 1.536zm3.84-10.944q-.768-.704-1.6-1.28t-1.6-1.344q-1.536-1.536-2.016-3.584t.16-4.16q.128-.32-.096-.544t-.544-.096q-.768.32-1.44.768t-1.312.896q-1.984 1.664-3.136 3.936T8.633 10.51t.8 5.088q0 .128.032.256t.032.256q0 .576-.512.832t-1.024-.192q-.128-.192-.192-.32-1.024-1.28-1.376-2.912t-.096-3.232q.064-.384-.288-.576t-.608.128q-1.28 1.664-1.856 3.68t-.448 4.064q0 .576.096 1.184t.288 1.184q.448 1.536 1.216 2.816 1.216 2.048 3.264 3.424t4.416 1.696q2.496.32 5.024-.256t4.448-2.304q1.408-1.344 2.208-3.104t.864-3.68-.704-3.712q-.064-.128-.096-.224t-.096-.224q-.576-1.088-1.28-1.984-.256-.384-.544-.704t-.672-.64z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_git" xmlns="http://www.w3.org/2000/svg"><path d="M27.472 12.753L15.247.529a1.803 1.803 0 00-2.55 0l-2.84 2.84 2.137 2.137a2.625 2.625 0 013.501 3.501l3.499 3.499a2.625 2.625 0 11-1.237 1.237l-3.499-3.499c-.083.04-.169.075-.257.106v7.3a2.626 2.626 0 11-1.75 0v-7.3a2.626 2.626 0 01-1.494-3.607L8.62 4.606l-8.09 8.09a1.805 1.805 0 000 2.551l12.225 12.224a1.803 1.803 0 002.55 0l12.168-12.168a1.805 1.805 0 000-2.551z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_github" xmlns="http://www.w3.org/2000/svg"><path d="M16 .394c8.833 0 15.999 7.166 15.999 15.999 0 7.062-4.583 13.062-10.937 15.187-.813.146-1.104-.354-1.104-.771 0-.521.021-2.25.021-4.396 0-1.5-.5-2.458-1.083-2.958 3.562-.396 7.312-1.75 7.312-7.896 0-1.75-.625-3.167-1.646-4.291.167-.417.708-2.042-.167-4.25-1.333-.417-4.396 1.646-4.396 1.646a15.032 15.032 0 00-8 0S8.937 6.602 7.603 7.018c-.875 2.208-.333 3.833-.167 4.25-1.021 1.125-1.646 2.542-1.646 4.291 0 6.125 3.729 7.5 7.291 7.896-.458.417-.875 1.125-1.021 2.146-.917.417-3.25 1.125-4.646-1.333-.875-1.521-2.458-1.646-2.458-1.646-1.562-.021-.104.979-.104.979 1.042.479 1.771 2.333 1.771 2.333.938 2.854 5.396 1.896 5.396 1.896 0 1.333.021 2.583.021 2.979 0 .417-.292.917-1.104.771C4.582 29.455-.001 23.455-.001 16.393-.001 7.56 7.165.394 15.998.394zM6.063 23.372c.042-.083-.021-.187-.146-.25-.125-.042-.229-.021-.271.042-.042.083.021.187.146.25.104.062.229.042.271-.042zm.646.709c.083-.062.062-.208-.042-.333-.104-.104-.25-.146-.333-.062-.083.062-.062.208.042.333.104.104.25.146.333.062zm.625.937c.104-.083.104-.25 0-.396-.083-.146-.25-.208-.354-.125-.104.062-.104.229 0 .375s.271.208.354.146zm.875.875c.083-.083.042-.271-.083-.396-.146-.146-.333-.167-.417-.062-.104.083-.062.271.083.396.146.146.333.167.417.062zm1.187.521c.042-.125-.083-.271-.271-.333-.167-.042-.354.021-.396.146s.083.271.271.312c.167.062.354 0 .396-.125zm1.313.104c0-.146-.167-.25-.354-.229-.187 0-.333.104-.333.229 0 .146.146.25.354.229.187 0 .333-.104.333-.229zm1.208-.208c-.021-.125-.187-.208-.375-.187-.187.042-.312.167-.292.312.021.125.187.208.375.167s.312-.167.292-.292z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_gitlab" xmlns="http://www.w3.org/2000/svg"><path d="M1.629 11.034L14 26.888.442 17.048a1.09 1.09 0 01-.39-1.203l1.578-4.811zm7.217 0h10.309l-5.154 15.854zM5.753 1.475l3.093 9.559H1.63l3.093-9.559a.548.548 0 011.031 0zm20.618 9.559l1.578 4.811c.141.437-.016.922-.39 1.203l-13.558 9.84 12.371-15.854zm0 0h-7.216l3.093-9.559a.548.548 0 011.031 0z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_heart" xmlns="http://www.w3.org/2000/svg"><path d="M16 29.714a1.11 1.11 0 01-.786-.321L4.072 18.643c-.143-.125-4.071-3.714-4.071-8 0-5.232 3.196-8.357 8.535-8.357 3.125 0 6.053 2.464 7.464 3.857 1.411-1.393 4.339-3.857 7.464-3.857 5.339 0 8.535 3.125 8.535 8.357 0 4.286-3.928 7.875-4.089 8.035L16.785 29.392c-.214.214-.5.321-.786.321z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_info_outline" xmlns="http://www.w3.org/2000/svg"><path d="M12.62 9.793V6.967h2.761v2.826H12.62zM14 25.239q4.601 0 7.92-3.319T25.239 14 21.92 6.08 14 2.761 6.08 6.08 2.761 14t3.319 7.92T14 25.239zM14 0q5.784 0 9.892 4.108T28 14t-4.108 9.892T14 28t-9.892-4.108T0 14t4.108-9.892T14 0zm-1.38 21.033V12.62h2.761v8.413H12.62z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_keyboard_arrow_down" xmlns="http://www.w3.org/2000/svg"><path d="M3.281 5.36L14 16.079 24.719 5.36 28 8.641l-14 14-14-14z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_keyboard_arrow_left" xmlns="http://www.w3.org/2000/svg"><path d="M25.875 28.25L22.125 32 6.126 16.001 22.125.002l3.75 3.75-12.25 12.25z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_keyboard_arrow_right" xmlns="http://www.w3.org/2000/svg"><path d="M6.125 28.25L18.375 16 6.125 3.75 9.875 0l15.999 15.999L9.875 31.998z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_keyboard_arrow_up" xmlns="http://www.w3.org/2000/svg"><path d="M24.719 22.64L14 11.921 3.281 22.64 0 19.359l14-14 14 14z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_link" xmlns="http://www.w3.org/2000/svg"><path d="M24.037 7.963q3.305 0 5.634 2.366T32 16t-2.329 5.671-5.634 2.366h-6.46v-3.08h6.46q2.028 0 3.493-1.465t1.465-3.493-1.465-3.493-3.493-1.465h-6.46v-3.08h6.46zM9.615 17.578v-3.155h12.77v3.155H9.615zM3.005 16q0 2.028 1.465 3.493t3.493 1.465h6.46v3.08h-6.46q-3.305 0-5.634-2.366T0 16.001t2.329-5.671 5.634-2.366h6.46v3.08h-6.46q-2.028 0-3.493 1.465t-1.465 3.493z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_menu" xmlns="http://www.w3.org/2000/svg"><path d="M.001 5.334h31.998v3.583H.001V5.334zm0 12.416v-3.5h31.998v3.5H.001zm0 8.916v-3.583h31.998v3.583H.001z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_notifications" xmlns="http://www.w3.org/2000/svg"><path d="M25.846 22.154l3.308 3.308v1.615H2.847v-1.615l3.308-3.308V14q0-3.846 1.961-6.692t5.423-3.692V2.462q0-1 .692-1.731T16 0t1.769.731.692 1.731v1.154q3.461.846 5.423 3.692T25.846 14v8.154zM16 32q-1.385 0-2.346-.923t-.962-2.308h6.615q0 1.308-1 2.269T15.999 32z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_person" xmlns="http://www.w3.org/2000/svg"><path d="M16 20.023q5.052 0 10.526 2.199t5.473 5.754v4.023H0v-4.023q0-3.555 5.473-5.754t10.526-2.199zM16 16q-3.275 0-5.614-2.339T8.047 8.047t2.339-5.661T16 0t5.614 2.386 2.339 5.661-2.339 5.614T16 16z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_pin" xmlns="http://www.w3.org/2000/svg"><path d="M17.6 19.2h9.6v-1.6L22.4 16V3.2l4.8-1.6V0H4.8v1.6l4.8 1.6V16l-4.8 1.6v1.6h9.6v11.2L16 32l1.6-1.6V19.2z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_rss_feed" xmlns="http://www.w3.org/2000/svg"><path d="M-.481 12.048q8.482 0 14.457 5.976t5.976 14.457h-5.879q0-5.976-4.289-10.264T-.48 17.928v-5.879zm0-11.565q13.204 0 22.601 9.397t9.397 22.601h-5.783q0-10.891-7.662-18.553T-.481 6.266V.483zm0 27.468q0-1.831 1.301-3.132t3.229-1.301 3.181 1.253 1.253 3.181-1.301 3.229-3.132 1.301q-1.928 0-3.229-1.301T-.48 27.952z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_search" xmlns="http://www.w3.org/2000/svg"><path d="M11.925 20.161q3.432 0 5.834-2.402t2.402-5.834-2.402-5.834-5.834-2.402-5.834 2.402-2.402 5.834 2.402 5.834 5.834 2.402zm10.981 0L32 29.255 29.255 32l-9.094-9.094v-1.458l-.515-.515q-3.26 2.831-7.721 2.831-4.976 0-8.45-3.432T.001 11.925t3.474-8.45 8.45-3.474 8.407 3.474 3.432 8.45q0 1.802-.858 4.075t-1.973 3.646l.515.515h1.458z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_security" xmlns="http://www.w3.org/2000/svg"><path d="M16 0l13.072 5.855v8.715q0 6.059-3.745 11.063T16 31.999q-5.583-1.362-9.327-6.366T2.928 14.57V5.855zm0 16v13.004q4.017-1.294 6.808-4.868T26.144 16H16zm0 0V3.2L5.856 7.693v8.306H16z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_star" xmlns="http://www.w3.org/2000/svg"><path d="M14 22.052L5.324 27.31l2.3-9.859L0 10.813l10.056-.854L14 .692l3.944 9.267L28 10.813l-7.624 6.638 2.3 9.859z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_tag" xmlns="http://www.w3.org/2000/svg"><path d="M17.52 17.52v-7.041h-7.041v7.041h7.041zM28 10.479h-7.041v7.041H28v3.439h-7.041V28H17.52v-7.041h-7.041V28H7.04v-7.041H-.001V17.52H7.04v-7.041H-.001V7.04H7.04V-.001h3.439V7.04h7.041V-.001h3.439V7.04H28v3.439z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_timer" xmlns="http://www.w3.org/2000/svg"><path d="M16 29q4.428 0 7.536-3.143t3.107-7.571-3.107-7.536T16 7.643 8.464 10.75t-3.107 7.536 3.107 7.571T16 29zM26.714 9.786q1.214 1.571 2.107 4.036t.893 4.464q0 5.643-4 9.678T16 32t-9.714-4.036-4-9.678 4-9.678T16 4.572q1.929 0 4.464.929t4.107 2.143l2.143-2.214q1.143.929 2.143 2.143zM14.5 19.857v-9.143h3v9.143h-3zM20.571.001v3.071h-9.143V.001h9.143z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_tree" xmlns="http://www.w3.org/2000/svg"><path d="M32 14.423H20.808V9.616h-3.23v12.77h3.23v-4.807H32v12.845H20.808v-4.807h-6.385v-16h-3.23v4.807H.001V1.579h11.192v4.807h9.615V1.579H32v12.845z"/></svg></defs></svg>
+
+
+
+
+    <div
+      class="wrapper "
+    >
+      <header class="gblog-header">
+  <div class="container flex flex-wrap">
+    <div class="gblog-header__col-1 flex justify-start hidden-mobile"></div>
+    <div class="gblog-header__col-2 flex align-center justify-center ">
+      <a class="gblog-header__link" rel="me" href="https://blog.parcio.de/">
+        <span class="gblog-brand flex align-center justify-center">
+          <img
+            class="gblog-brand__img"
+            src="/brand.svg"
+            alt=""
+          />
+          <span class="gblog-brand__title">Parallel Computing and I/O Blog</span>
+        </span>
+        
+          <span class="gblog-brand__subtitle flex align-center justify-center">We conduct research and development on parallel systems</span>
+        
+      </a>
+    </div>
+    <div class="gblog-header__col-3 flex justify-end">
+      <span id="gblog-color-theme">
+        <svg class="gblog-icon gblog_brightness_dark">
+          <title></title>
+          <use xlink:href="#gblog_brightness_dark"></use>
+        </svg>
+        <svg class="gblog-icon gblog_brightness_light">
+          <title></title>
+          <use xlink:href="#gblog_brightness_light"></use>
+        </svg>
+        <svg class="gblog-icon gblog_brightness_auto">
+          <title></title>
+          <use xlink:href="#gblog_brightness_auto"></use>
+        </svg>
+      </span>
+    </div>
+  </div>
+</header>
+<nav class="gblog-nav">
+  <input type="checkbox" id="menu-control" class="hidden" />
+  <div class="gblog-nav__control">
+    <label for="menu-control" class="flex align-center justify-center">
+      <svg class="gblog-icon gblog_menu"><use xlink:href="#gblog_menu"></use></svg>
+      <svg class="gblog-icon gblog_clear"><use xlink:href="#gblog_clear"></use></svg>
+      <span>Navigation</span>
+    </label>
+  </div>
+  <ul class="gblog-nav__list container flex flex-wrap justify-center menu-content">
+    
+    
+    
+      
+
+  
+  
+  
+
+  
+    
+      
+      
+      
+
+      
+        <li>
+          <a
+            href="/tags/Correctness/"
+            class="gblog-nav__entry"
+          >
+            <span class="flex align-center">
+              
+                <svg class="gblog-icon gblog_bookmark"><use xlink:href="#gblog_bookmark"></use></svg>
+              
+              <span>
+                Correctness
+              </span>
+            </span>
+          </a>
+        </li>
+      
+    
+  
+    
+      
+      
+      
+
+      
+        <li>
+          <a
+            href="/tags/Efficiency/"
+            class="gblog-nav__entry"
+          >
+            <span class="flex align-center">
+              
+                <svg class="gblog-icon gblog_bookmark"><use xlink:href="#gblog_bookmark"></use></svg>
+              
+              <span>
+                Efficiency
+              </span>
+            </span>
+          </a>
+        </li>
+      
+    
+  
+    
+      
+      
+      
+
+      
+        <li>
+          <a
+            href="https://parcio.ovgu.de/"
+            class="gblog-nav__entry"
+          >
+            <span class="flex align-center">
+              
+                <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+              
+              <span>
+                ParCIO Website
+              </span>
+            </span>
+          </a>
+        </li>
+      
+    
+  
+
+
+
+
+
+
+    
+  </ul>
+</nav>
+
+
+
+      <main class="gblog-page container">
+        
+  <article class="gblog-post">
+    <header class="gblog-post__header">
+      
+      
+
+
+      <h1 class="gblog-post__title">An introduction to performance analysis and understanding profilers</h1>
+
+      
+        <div class="flex flex-wrap align-center gblog-post__meta gblog-post__meta--head">
+          <span class="flex align-center no-wrap">
+  <svg class="gblog-icon gblog_date"><use xlink:href="#gblog_date"></use></svg>
+  <span class="gblog-post__tag">
+    <time datetime="2022-06-14T00:00:00Z">
+      
+      Jun 14, 2022
+    </time>
+  </span>
+</span>
+
+<span class="flex align-center no-wrap">
+  <svg class="gblog-icon gblog_timer"><use xlink:href="#gblog_timer"></use></svg>
+  <span class="gblog-post__tag">18 min read</span>
+</span>
+
+
+
+
+
+  
+    
+    
+      
+        <span class="flex align-center no-wrap">
+          <svg class="gblog-icon gblog_person"><use xlink:href="#gblog_person"></use></svg>
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a class="gblog-button__link" href="/authors/kevin.kulot/" title="All posts of this author">
+      Kevin Kulot
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+
+
+
+
+  
+    
+    
+      
+        <span class="flex align-center no-wrap">
+          <svg class="gblog-icon gblog_bookmark"><use xlink:href="#gblog_bookmark"></use></svg>
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a
+      class="gblog-button__link"
+      href="/tags/Efficiency/"
+      title="All posts tagged with 'Efficiency'"
+    >
+      Efficiency
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+    
+    
+      
+        <span class="flex align-center">
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a
+      class="gblog-button__link"
+      href="/tags/EPEA-2021/"
+      title="All posts tagged with 'EPEA 2021'"
+    >
+      EPEA 2021
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+    
+    
+      
+        <span class="flex align-center">
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a
+      class="gblog-button__link"
+      href="/tags/Profiling/"
+      title="All posts tagged with 'Profiling'"
+    >
+      Profiling
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+    
+    
+      
+        <span class="flex align-center">
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a
+      class="gblog-button__link"
+      href="/tags/Teaching/"
+      title="All posts tagged with 'Teaching'"
+    >
+      Teaching
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+
+
+
+
+
+
+        </div>
+      
+    </header>
+    <section class="gblog-markdown">
+      <p>Where performance matters, we want to make sure we know what to look for and what to optimize.
+For that we need to measure our code by analyzing its performance with tools either provided by the language or external ones called &ldquo;profilers&rdquo;.
+This post intends to give an overview on both of these methods while introducing some tools &ndash; like <code>Google Benchmark</code> and <code>perf</code> &ndash; and explaining their functionality.</p>
+<blockquote>
+<p>&ldquo;<em>Premature optimization is the root of all evil.</em>&rdquo;</p>
+</blockquote>
+<p>A famous quote by Tony Hoare, later popularised by Donald Knuth, shows why measuring performance is so important.
+If we try to optimize our code before knowing <em>where</em> it may be needed, it might end up hindering us in the long run.
+Trying to be unnecessarily clever by, for example, replacing divisions and multiplications by powers of two with bit shifts, might just end up hurting readability while not providing any gains in performance as most compilers nowadays are able to do such trivial optimizations.</p>
+<p>We want to do <strong>benchmarks</strong>, more precisely <strong>micro benchmarks</strong>.
+Micro benchmarks are for measuring small parts, like single functions or routines of our code, inspecting hot loops and investigate small things such as cache misses or assembly code generation.
+Before we perform these micro benchmarks, let&rsquo;s introduce a dichotomy<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup> of tools.</p>
+<p><strong>In-Code Benchmarking:</strong> Measuring/performing benchmarks within the language by leveraging existing functions and libraries.</p>
+<p><strong>Profilers:</strong> External, language-agnostic tools which measure/perform benchmarks while utilizing the compiled binary and system calls.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="in-code-benchmarking">
+        In-Code Benchmarking
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/06/performance-analysis/#in-code-benchmarking" class="gblog-post__anchor clip flex align-center" aria-label="Anchor In-Code Benchmarking" href="#in-code-benchmarking">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>Let&rsquo;s look at and compare three different languages and what they natively provide for benchmarking and measuring performance.
+C, C++ and Rust &ndash; compiled, systems programming languages &ndash; all provide at least some tools necessary for capturing the current time (with varying precision), something we definitely need to begin measuring our code.
+By going from an older, relatively low-level language<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>, like C, to a newer one like Rust with more high-level abstractions, we will quickly notice a difference in ease of use and amount of options available to us while coding (micro) benchmarks.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h3 id="as-old-as-timeh-c-and-posix">
+        As old as <code>&lt;time.h&gt;</code>: C and POSIX
+    </h3>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/06/performance-analysis/#as-old-as-timeh-c-and-posix" class="gblog-post__anchor clip flex align-center" aria-label="Anchor As old as &lt;time.h&gt;: C and POSIX" href="#as-old-as-timeh-c-and-posix">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>Let&rsquo;s begin with C and its <a
+  class="gblog-markdown__link--code"
+  href="https://en.cppreference.com/w/c/chrono"
+  
+><code>time.h</code></a> facilities:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="hl"><span class="lnt"> 5
+</span></span><span class="lnt"> 6
+</span><span class="hl"><span class="lnt"> 7
+</span></span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span><span class="cp">#include</span> <span class="cpf">&lt;time.h&gt;</span><span class="cp">
+</span><span class="cp"></span>
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+<span class="hl">    <span class="n">time_t</span> <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="p">(</span><span class="nb">NULL</span><span class="p">);</span>
+</span>    <span class="c1">// expensive operation
+</span><span class="hl"><span class="c1"></span>    <span class="n">time_t</span> <span class="n">end</span> <span class="o">=</span> <span class="n">time</span><span class="p">(</span><span class="nb">NULL</span><span class="p">);</span>
+</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;%.2f seconds</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="p">(</span><span class="kt">double</span><span class="p">)</span> <span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">);</span>
+
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p><code>time(...)</code> returns the current calendar time, which is almost always represented as the number of seconds since <a
+  class="gblog-markdown__link"
+  href="https://en.wikipedia.org/wiki/Unix_time"
+  
+>the Epoch (00:00:00 UTC 01/01/1970)</a>, as a <code>time_t</code> object.
+The full function signature is <code>time_t time(time_t* arg)</code> where <code>arg</code> acts as an out-parameter storing the same information as the return value, which is why we pass in <code>NULL</code>.
+Since <code>time_t</code> is just a typedef for an unspecified (implementation-defined) real type, we can compute the difference between <code>start</code> and <code>end</code> to get the elapsed time in seconds.
+This essentially measures so-called &ldquo;wall clock time&rdquo;, something we will come back to later.</p>
+<p>One alternative time measuring facility is the <code>clock_t clock(void)</code> function.
+Unlike <code>time()</code>, it returns the approximate processor time, or &ldquo;CPU time&rdquo;, of the current process.
+Similar to <code>time_t</code>, the returned value is also an implementation-defined real type<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup> from which we can calculate a difference.
+This &ldquo;CPU time&rdquo; may differ from &ldquo;wall clock time&rdquo; as it may advance faster or slower depending on the resources allocated by the operating system.</p>
+<p>If we want a little more precision while still using C, the C POSIX library offers additional functionality.
+For example, <a
+  class="gblog-markdown__link--code"
+  href="https://man7.org/linux/man-pages/man2/gettimeofday.2.html"
+  
+><code>gettimeofday()</code></a>, provided by the <code>sys/time.h</code> header, lets us measure with microsecond accuracy:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="hl"><span class="lnt"> 8
+</span></span><span class="lnt"> 9
+</span><span class="hl"><span class="lnt">10
+</span></span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span><span class="cp">#include</span> <span class="cpf">&lt;sys/time.h&gt;</span><span class="cp">
+</span><span class="cp"></span>
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">struct</span> <span class="n">timeval</span> <span class="n">tv_start</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="n">timeval</span> <span class="n">tv_end</span><span class="p">;</span>
+
+<span class="hl">    <span class="n">gettimeofday</span><span class="p">(</span><span class="o">&amp;</span><span class="n">tv_start</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+</span>    <span class="c1">// expensive operation
+</span><span class="hl"><span class="c1"></span>    <span class="n">gettimeofday</span><span class="p">(</span><span class="o">&amp;</span><span class="n">tv_end</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;%.2f µs</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="p">(</span><span class="kt">double</span><span class="p">)</span> <span class="n">tv_end</span><span class="p">.</span><span class="n">tv_usec</span> <span class="o">-</span> <span class="n">tv_start</span><span class="p">.</span><span class="n">tv_usec</span><span class="p">);</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>We declare two structs of type <code>timeval</code> as out-parameters for <code>gettimeofday()</code> which takes two arguments: <code>struct timeval* tv</code> and <code>struct timezone* tz</code>.
+The <code>timeval</code> struct holds the following information:</p>
+<div class="gblog-columns flex flex-wrap flex-mobile-column">
+  
+    <div class="gblog-columns__content gblog-markdown--nested flex-even">
+      <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="k">struct</span> <span class="n">timeval</span> <span class="p">{</span>
+    <span class="n">time_t</span>      <span class="n">tv_sec</span><span class="p">;</span>     <span class="cm">/* seconds */</span>
+    <span class="n">suseconds_t</span> <span class="n">tv_usec</span><span class="p">;</span>    <span class="cm">/* microseconds */</span>
+<span class="p">};</span>
+</code></pre></div>
+    </div>
+  
+    <div class="gblog-columns__content gblog-markdown--nested flex-even">
+      This allows us to also get the amount of microseconds after the Epoch for much greater measuring precision.
+The type used to represent the microseconds, <code>suseconds_t</code>, is usually defined as a <code>long</code> which can hold at least 32 bits.
+    </div>
+  
+</div>
+
+<p>The second argument of <code>gettimeofday()</code> can be used to get information about the timezone of the system though it is obsolete and flawed, hence why just passing in <code>NULL</code> is recommended<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h3 id="a-new-dawn-c-and-chrono">
+        A new dawn: C++ and <code>&lt;chrono&gt;</code>
+    </h3>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/06/performance-analysis/#a-new-dawn-c-and-chrono" class="gblog-post__anchor clip flex align-center" aria-label="Anchor A new dawn: C&#43;&#43; and &lt;chrono&gt;" href="#a-new-dawn-c-and-chrono">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>With the arrival of C++11, a more flexible collection of types for time tracking was added to the standard.
+Including the most recent changes to <a
+  class="gblog-markdown__link--code"
+  href="https://en.cppreference.com/w/cpp/chrono"
+  
+><code>&lt;chrono&gt;</code></a> as part of C++20, the following clock types are available:</p>
+<div class="gblog-columns flex flex-wrap flex-mobile-column">
+  
+    <div class="gblog-columns__content gblog-markdown--nested flex-even">
+      <p><strong>C++11</strong></p>
+<ul>
+<li><code>std::chrono::system_clock</code></li>
+<li><code>std::chrono::steady_clock</code></li>
+<li><code>std::chrono::high_resolution_clock</code></li>
+</ul>
+
+    </div>
+  
+    <div class="gblog-columns__content gblog-markdown--nested flex-even">
+      <p><strong>C++20</strong></p>
+<ul>
+<li><code>std::chrono::utc_clock</code></li>
+<li><code>std::chrono::tai_clock</code></li>
+<li><code>std::chrono::gps_clock</code></li>
+<li><code>std::chrono::file_clock</code></li>
+<li><code>std::chrono::local_t</code></li>
+</ul>
+
+    </div>
+  
+</div>
+
+<p>Now this might seem overwhelming at first but when it comes to benchmarking, the only clock types we need to look at are the ones added in C++11.
+Out of these, <code>std::chrono::steady_clock</code> is the most suitable for measuring intervals.
+To understand why, let&rsquo;s take a quick detour and talk about what a <code>Clock</code> is according to the C++ standard and the differences between the aforementioned three types of clocks.
+In its most basic form, a clock type needs to have a starting point and a tick rate.
+A more precise definition of the requirements needed to satisfy being a <code>Clock</code> type can be found <a
+  class="gblog-markdown__link"
+  href="https://en.cppreference.com/w/cpp/named_req/Clock"
+  
+>here</a>.</p>
+<p>Now, let&rsquo;s compare the different clocks:</p>
+<div class=table-wrap> <table>
+<thead>
+<tr>
+<th><code>std::chrono::system_clock </code></th>
+<th><code>std::chrono::steady_clock </code></th>
+<th><code>std::chrono::high_resolution_clock </code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>- system wide <em>wall clock time</em></td>
+<td>- <strong>monotonic</strong> clock</td>
+<td>- clock with the smallest tick period</td>
+</tr>
+<tr>
+<td>- system time can be adjusted</td>
+<td>- tick frequency constant</td>
+<td>- alias of one of the other two</td>
+</tr>
+<tr>
+<td>- maps to C-style time</td>
+<td>- not related to wall clock time</td>
+<td>- should be avoided (implementation-defined)</td>
+</tr>
+</tbody>
+</table> </div>
+<p><strong>Wall clock time</strong> is the actual, real time a physical clock (be it a watch or an actual wall clock) would measure.
+A wall clock may be subject to unexpected changes which would invalidate any measurements taken with it.
+It has the ability to jump backward or forward in time through manual adjustments or automatic synchronization with NTP (Network Time Protocol).
+This makes <code>std::chrono::system_clock</code> biased and unfit for anything but giving us the current time.</p>
+<p><strong>Monotonic clocks</strong>, like <code>std::chrono::steady_clock</code>, on the other hand cannot jump forward or backward in time and their tick rate is constant.
+<code>std::chrono::steady_clock</code> uses the system startup time as its Epoch and will never be adjusted.
+It acts like a stopwatch, perfect for measuring intervals but not for telling time.</p>
+<p>Let&rsquo;s look at an example:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="hl"><span class="lnt"> 8
+</span></span><span class="lnt"> 9
+</span><span class="hl"><span class="lnt">10
+</span></span><span class="lnt">11
+</span><span class="hl"><span class="lnt">12
+</span></span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="cp">#include</span> <span class="cpf">&lt;chrono&gt;</span><span class="cp">
+</span><span class="cp">#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
+</span><span class="cp"></span>
+<span class="c1">// to save us from typing std::chrono everytime
+</span><span class="c1"></span><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="p">;</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+<span class="hl">    <span class="k">auto</span> <span class="n">start</span> <span class="o">=</span> <span class="n">steady_clock</span><span class="o">::</span><span class="n">now</span><span class="p">();</span>
+</span>    <span class="c1">// expensive operation
+</span><span class="hl"><span class="c1"></span>    <span class="k">auto</span> <span class="n">end</span> <span class="o">=</span> <span class="n">steady_clock</span><span class="o">::</span><span class="n">now</span><span class="p">();</span>
+</span>
+<span class="hl">    <span class="k">auto</span> <span class="n">duration</span> <span class="o">=</span> <span class="n">duration_cast</span><span class="o">&lt;</span><span class="n">milliseconds</span><span class="o">&gt;</span><span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">).</span><span class="n">count</span><span class="p">();</span>
+</span>    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">duration</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;ms</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span>
+
+    <span class="k">return</span> <span class="n">EXIT_SUCCESS</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>Just like before, we define a start and end time point with the <code>now()</code> function of the clock.
+This static member function returns a <code>std::chrono::time_point</code> with the current time.
+In line 12, we first compute the difference between these two, returning a <code>std::chrono::duration</code> type, which we can then cast to actual time units with <code>std::chrono::duration_cast()</code>.
+The availabe units range from nanoseconds to years and are passed in as a template parameter.
+Finally, <code>count()</code> converts the chosen time unit to the underlying arithmetic type which we can then output.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h3 id="a-tale-of-abstractions-rust-et-al">
+        A tale of abstractions: Rust et al.
+    </h3>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/06/performance-analysis/#a-tale-of-abstractions-rust-et-al" class="gblog-post__anchor clip flex align-center" aria-label="Anchor A tale of abstractions: Rust et al." href="#a-tale-of-abstractions-rust-et-al">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>Now that we know how C and C++ handle time, how clocks work and the differences between wall clock time and monotonic clocks, let&rsquo;s look at one final systems programming language with an even higher level of abstraction.
+Unlike C++, Rust hides most of the implementation details (and spares us from typing <code>std::chrono</code> or verbose casts) while still providing the same level of precision:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="hl"><span class="lnt">4
+</span></span><span class="lnt">5
+</span><span class="hl"><span class="lnt">6
+</span></span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-rust" data-lang="rust"><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">time</span>::<span class="n">Instant</span><span class="p">;</span><span class="w">
+</span><span class="w">
+</span><span class="w"></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span><span class="hl"><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Instant</span>::<span class="n">now</span><span class="p">();</span><span class="w">
+</span></span><span class="w">    </span><span class="c1">// expensive operation
+</span><span class="hl"><span class="c1"></span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">start</span><span class="p">.</span><span class="n">elapsed</span><span class="p">();</span><span class="w">
+</span></span><span class="w">
+</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&#34;{}ms&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">end</span><span class="p">.</span><span class="n">as_millis</span><span class="p">());</span><span class="w">
+</span><span class="w"></span><span class="p">}</span><span class="w">
+</span></code></pre></td></tr></table>
+</div>
+</div><p>All that is needed, is to take the current time with <code>Instant::now()</code> as a start point, then define an end point.
+An <a
+  class="gblog-markdown__link--code"
+  href="https://doc.rust-lang.org/std/time/struct.Instant.html"
+  
+><code>Instant</code></a> type in Rust always represents a non-decreasing monotonic clock.
+This end point could be &ndash; just like in C or C++ &ndash; defined as another <code>Instant::now()</code> and we could compute the difference but Rust also allows us to just call the <code>elapsed()</code> method on the start point.
+This returns a <a
+  class="gblog-markdown__link--code"
+  href="https://doc.rust-lang.org/std/time/struct.Duration.html"
+  
+><code>Duration</code></a> and is arguably more readable and declarative than a minus sign between two non-arithmetic types while also being shorter.</p>
+<p>Finally, we can convert the <code>Duration</code> to time units with the corresponding methods similar to <code>duration_cast&lt;&gt;()</code> in C++.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h3 id="going-from-measuring-to-benchmarking-google-benchmark">
+        Going from measuring to benchmarking: Google Benchmark
+    </h3>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/06/performance-analysis/#going-from-measuring-to-benchmarking-google-benchmark" class="gblog-post__anchor clip flex align-center" aria-label="Anchor Going from measuring to benchmarking: Google Benchmark" href="#going-from-measuring-to-benchmarking-google-benchmark">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>So far, we only looked at what C, C++ and Rust offer us in terms of measuring time.
+Of course, most languages offer similar features and functions though each with a slightly different syntax.
+The goal is not to present all of these different ways of calling such functions &ndash; that&rsquo;s what the docs are for &ndash; but rather show different levels of abstractions while also highlighting similarities in the methodology.</p>
+<p>Things like defining start and end points, computing their difference, being aware of clock types might be something to keep in mind regardless of the language used.
+But what we did so far was not <em>benchmarking</em>.
+In order for us to proclaim we performed a successful benchmark, we need to measure not only once but many more times.
+We need to calculate the mean or median of these multiple measurements.
+We want to rule out any random or statistical errors.
+Ideally, we also want to not have to define start and end points manually like we did before for every single measurement.</p>
+<p>This is where (micro) benchmarking libraries come in handy.
+While many exist for every language, we are going to stick with C++ for now and take a look at <a
+  class="gblog-markdown__link"
+  href="https://github.com/google/benchmark"
+  
+><strong>Google Benchmark</strong></a>.
+This open-source micro benchmarking library from Google makes timing of small code snippets much easier and allows us to get good statistical averages through repeated sampling of said snippets.</p>
+<p>The example in their <code>README.md</code> shows the basic idea:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="cp">#include</span> <span class="cpf">&lt;benchmark/benchmark.h&gt;</span><span class="cp">
+</span><span class="cp"></span>
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">BM_StringCreation</span><span class="p">(</span><span class="n">benchmark</span><span class="o">::</span><span class="n">State</span><span class="o">&amp;</span> <span class="n">state</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">for</span> <span class="p">(</span><span class="k">auto</span> <span class="nl">_</span> <span class="p">:</span> <span class="n">state</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">empty_string</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+<span class="c1">// Register the function as a benchmark
+</span><span class="c1"></span><span class="n">BENCHMARK</span><span class="p">(</span><span class="n">BM_StringCreation</span><span class="p">);</span>
+
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">BM_StringCopy</span><span class="p">(</span><span class="n">benchmark</span><span class="o">::</span><span class="n">State</span><span class="o">&amp;</span> <span class="n">state</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">x</span> <span class="o">=</span> <span class="s">&#34;hello&#34;</span><span class="p">;</span>
+    <span class="k">for</span> <span class="p">(</span><span class="k">auto</span> <span class="nl">_</span> <span class="p">:</span> <span class="n">state</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">copy</span><span class="p">(</span><span class="n">x</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+<span class="c1">// Register another function as a benchmark
+</span><span class="c1"></span><span class="n">BENCHMARK</span><span class="p">(</span><span class="n">BM_StringCopy</span><span class="p">);</span>
+
+<span class="n">BENCHMARK_MAIN</span><span class="p">();</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>Any method that we wish to benchmark has to be marked as <code>static</code>.
+Furthermore, they also need to have a mutable reference to a <code>benchmark::State</code> as an argument.
+By iterating over the state object with the code we wish to benchmark, we &ldquo;add&rdquo; to the sampling process.
+The <code>BENCHMARK</code> macro registers the functions as a benchmark while the <code>BENCHMARK_MAIN()</code> macro generates an appropriate <code>main()</code> function.</p>
+<p>If we compile the code as follows:</p>
+<pre tabindex="0"><code>$ g++ main.cpp -std=c++11 -isystem benchmark/include -Lbenchmark/build/src -lbenchmark -lpthread -o main
+</code></pre><p>We get this output:</p>
+<pre tabindex="0"><code>2022-01-06T00:26:34+01:00
+Running ./main
+Run on (6 X 3696 MHz CPU s)
+Load Average: 0.52, 0.58, 0.59
+------------------------------------------------------------
+Benchmark                  Time             CPU   Iterations
+------------------------------------------------------------
+BM_StringCreation       4.27 ns         4.33 ns    165925926
+BM_StringCopy           7.84 ns         7.85 ns     89600000
+</code></pre><p>Google Benchmark creates a table displaying wall clock time, CPU time and how often each function was sampled for us.
+It is able to sample a function up to a billion times.
+Now, to make this code faster, the first step would be to turn on optimizations.
+Currently, we compile with no optimizations (<code>-O0</code>), so let&rsquo;s use <code>-O3</code> and see what happens:</p>
+<pre tabindex="0"><code>2022-01-07T21:27:42+01:00
+Running ./main
+Run on (6 X 3696 MHz CPU s)
+Load Average: 0.52, 0.58, 0.59
+------------------------------------------------------------
+Benchmark                  Time             CPU   Iterations
+------------------------------------------------------------
+BM_StringCreation      0.000 ns        0.000 ns   1000000000
+BM_StringCopy           4.14 ns         4.17 ns    172307692
+</code></pre><p>At first glance we seem to have created the world&rsquo;s fastest string creation function though sadly, that is not what happened.
+Taking a look at line 5 of the example code reveals the problem.
+<code>std::string empty_string</code> is declared but we do not use it anywhere else in the code, so the compiler is smart and sees that removing it would have no side effects to the program and does so.
+Most of the time, this is the behavior we expect and want from our compiler but in this case we actually do want to keep this unused variable around.</p>
+<p>Luckily, Google Benchmark has functions that can pretend to use a variable so the compiler can&rsquo;t just remove it anymore:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="hl"><span class="lnt">4
+</span></span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="k">static</span> <span class="kt">void</span> <span class="nf">BM_StringCreation</span><span class="p">(</span><span class="n">benchmark</span><span class="o">::</span><span class="n">State</span><span class="o">&amp;</span> <span class="n">state</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">for</span> <span class="p">(</span><span class="k">auto</span> <span class="nl">_</span> <span class="p">:</span> <span class="n">state</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">empty_string</span><span class="p">;</span>
+<span class="hl">        <span class="n">benchmark</span><span class="o">::</span><span class="n">DoNotOptimize</span><span class="p">(</span><span class="n">empty_string</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>This allows us to still benchmark the creation of an empty string while using <code>-O3</code>.
+There are many other ways to prevent certain optimizations from happening that would invalidate a benchmark though this and <code>benchmark::ClobberMemory()</code> are the ones Google Benchmark provides.<sup id="fnref:5"><a href="#fn:5" class="footnote-ref" role="doc-noteref">5</a></sup>
+Now, our table looks much more sensible:</p>
+<pre tabindex="0"><code>2022-01-07T21:26:18+01:00
+Running ./main
+Run on (6 X 3696 MHz CPU s)
+Load Average: 0.52, 0.58, 0.59
+------------------------------------------------------------
+Benchmark                  Time             CPU   Iterations
+------------------------------------------------------------
+BM_StringCreation      0.681 ns        0.688 ns   1000000000
+BM_StringCopy           4.04 ns         3.99 ns    172307692
+</code></pre><p>Unwanted optimizations are just one thing to be aware of when doing benchmarks.
+Depending on what is tested, we might want clear our cache before a run, do warmup runs if I/O is involved or compare the same function with differing parameters &ndash; so called &ldquo;parameterized benchmarks&rdquo;.
+Many benchmarking libraries will have all of these advanced features and more but they are out of scope for this post.
+For quick tests and comparisons, <a
+  class="gblog-markdown__link"
+  href="https://quick-bench.com/#"
+  
+><strong>Quick Bench</strong></a>, an online compiler using Google Benchmark, is a great alternative.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="profilers----more-than-just-time">
+        Profilers &ndash; more than just time
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/06/performance-analysis/#profilers----more-than-just-time" class="gblog-post__anchor clip flex align-center" aria-label="Anchor Profilers &ndash; more than just time" href="#profilers----more-than-just-time">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>So far, we only measured the time it took for a program or a certain function to run.
+Going back to the quote presented at the beginning: in order for us to optimize our code, we need to know <em>what</em> to optimize.
+Just benchmarking some functions will not tell us where a potential bottleneck might be &ndash; we need more information about our program.</p>
+<p>This is where <strong>profilers</strong> shine brightest.
+Profilers are usually external, language-agnostic tools that operate on a binary and not on source code.
+They usually offer:</p>
+<ul>
+<li>(relative) timing of every function call</li>
+<li>generating call graphs (who called what) and flamegraphs</li>
+<li>frequency of instruction calls</li>
+<li>frequency of generated assembly function calls</li>
+<li>in-depth performance counter stats, e.g., branch misses, CPU cycles and many more</li>
+</ul>
+<p>There are many different profilers out there, each specialized for their own use-case<sup id="fnref:6"><a href="#fn:6" class="footnote-ref" role="doc-noteref">6</a></sup> and it can help to know how to classify different types of profilers.
+The most common types are:</p>
+<ul>
+<li>Flat profilers &ndash; computes average call times</li>
+<li>Call-graph profilers &ndash; shows call times, function frequencies and creates a call-chain graph</li>
+<li>Input-sensitive profilers &ndash; generate profiles and charts based on different inputs and how a function scales based on it</li>
+<li>Event-based profilers &ndash; only collect statistics when certain pre-defined events happen</li>
+<li>Statistical profilers &ndash; operate via sampling by probing the call stack through interrupts</li>
+</ul>
+<p>This classification is not mutually exclusive &ndash; a profiler can offer any one or all of these features.
+We are going to take a look at one tool in particular: <code>perf</code>.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h3 id="perf-jack-of-all-trades">
+        <code>perf</code>: jack of all trades
+    </h3>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/06/performance-analysis/#perf-jack-of-all-trades" class="gblog-post__anchor clip flex align-center" aria-label="Anchor perf: jack of all trades" href="#perf-jack-of-all-trades">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>The reason why <code>perf</code> is a good first choice is that almost everyone (that uses Linux<sup id="fnref:7"><a href="#fn:7" class="footnote-ref" role="doc-noteref">7</a></sup>) already has it as it is part of the kernel.
+It also does many of the aforementioned things just out of the box.
+Let&rsquo;s start by creating a statistical profile:</p>
+<pre tabindex="0"><code>$ perf stat ./peekng encode 123.png teSt secret
+</code></pre><pre tabindex="0"><code> Performance counter stats for './peekng encode 123.png teSt secret':
+
+              2,54 msec task-clock:u              #    0,287 CPUs utilized
+                 0      context-switches:u        #    0,000 /sec
+                 0      cpu-migrations:u          #    0,000 /sec
+               187      page-faults:u             #   73,490 K/sec
+         4.724.914      cycles:u                  #    1,857 GHz
+         5.977.214      instructions:u            #    1,27  insn per cycle
+         1.103.539      branches:u                #  433,686 M/sec
+            18.837      branch-misses:u           #    1,71% of all branches
+
+       0,008852233 seconds time elapsed
+
+       0,003009000 seconds user
+       0,000000000 seconds sys
+</code></pre><p><a
+  class="gblog-markdown__link--code"
+  href="https://github.com/xkevio/peekng"
+  
+><code>peekng</code></a> here just acts as an example program, all it does is encode the word <code>secret</code> into <code>123.png</code>.
+As we can see, we received a lot of additional information about our program which may help with identifying optimization opportunities.
+For example, we observe 187 page faults meaning <code>peekng</code> might have tried to access a memory page which was not loaded into RAM and had to be loaded from a disk 187 times (this is just one reason why a page fault might occur).
+This may lead us to look at how we handle file reads and writes in our program.
+Additionally, <code>perf stat</code> shows us the time it took to execute the program as wall clock time and CPU time (user + sys).</p>
+<p>Another thing <code>perf</code> offers us, is creating an interactive call graph.
+This happens with a combination of <code>perf record</code> and <code>perf report</code> though we need to be careful to not eliminate certain debug symbols.
+Earlier, we looked at how we might want to prevent certain optimizations from happening while still using <code>-O3</code> (or your preferred language&rsquo;s equivalent) in source code &ndash; now we need to fiddle with some compiler flags.</p>
+<p>GCC, for example, has <code>-Og</code> as an additional optimization level which optimizes for debugging experience.
+It enables some compiler passes for collecting debug information while only optimizing at a level close to <code>-O1</code>.
+Having this additional information still in the binary will make reading and following the call graph much easier.
+Another important thing is to keep the frame pointer register.
+The frame pointer stores the current stack frame pointer in a reserved register if needed for a function.
+It allows us to get additional information about how the stack was used during runtime.
+By default, most compilers omit the frame pointer to get one additional register but this can be disabled via <code>-fno-omit-frame-pointer</code> in GCC.</p>
+<p>Languages that do not use the GCC backend may have similar options though under different names.
+Keeping the frame pointer under Rust, for example, actually requires us to modify the <code>perf record</code> command slightly.
+Let&rsquo;s look at how it works:</p>
+<pre tabindex="0"><code>$ perf record [-g / --call-graph=dwarf] &lt;COMMAND&gt;
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0,135 MB perf.data (16 samples) ]
+</code></pre><p>Usually, the <code>-g</code> flag will suffice to create the graph but to keep the frame pointer intact for languages like Rust, the second flag is required instead.
+To generate the call graph from the <code>perf.data</code> file, <code>perf report [-g / -G]</code> is used.
+Depending on if we want the function hierarchy to go from callee to caller or vice versa, either <code>-g</code> or <code>-G</code> is required.
+The call graph, going from caller to callee, looks like this:</p>
+<center>
+    <img src="perf-example.png" width="75%" height="75%">
+</center>
+<p>We can now see relative timings for every function call made, see which functions call other functions and get a more general idea of where a bottleneck might be.
+Plus, <code>perf</code> also allows us to look at the assembly of a chosen function call by pressing the <kbd>A</kbd> key annotated with the frequency each instruction is called with.
+Had we not done the previous steps of preventing certain optimizations and keeping debug symbols, this graph would be full of mangled function names and call hierarchies going deep into system calls.</p>
+<p><code>perf</code> provides many other options like setting tracepoints and even doing kernel microbenchmarks, which we aren&rsquo;t going to look at in this post, though it is certainly worth looking at what else it has to offer.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h3 id="the-underlying-kernel-interface-perf_events">
+        The underlying kernel interface: <code>perf_events</code>
+    </h3>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/06/performance-analysis/#the-underlying-kernel-interface-perf_events" class="gblog-post__anchor clip flex align-center" aria-label="Anchor The underlying kernel interface: perf_events" href="#the-underlying-kernel-interface-perf_events">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>Since the profiler tool is part of the Linux kernel, it has mostly direct access to any events the kernel picks up on.
+This is done via something called <code>perf_events</code> &ndash; an interface exported by the Linux kernel.
+It can measure events from different sources depending on the subcommand that was run.</p>
+<p><strong>Software events</strong> are pure kernel counters, utilized in part for <code>perf stat</code>.
+They include such things as context-switches, page faults, etc.</p>
+<p><strong>Hardware events</strong> are events stemming from the processor itself and its PMU (Performance Monitoring Unit).
+The PMU provides a list of michro-architectural events like CPU cycles, cache misses and some others.</p>
+<p><strong>Tracepoint events</strong>, implemented via the <code>ftrace</code> kernel infrastructure, provide a way to interface with certain syscalls when tracing is required.</p>
+<p>For a full list of possible events, see the <a
+  class="gblog-markdown__link"
+  href="https://perf.wiki.kernel.org/index.php/Tutorial"
+  
+>perf wiki</a>.
+The statistical profile we generated earlier came together through <code>perf</code> keeping a running count during execution of these supported events.
+<code>perf_events</code> uses, as the name suggests, <em>event-based sampling</em>.
+This means that every time a certain event happens, the sampling counter is increased.
+Which event is chosen depends on how we intend to use <code>perf</code>.
+The <code>record</code> subcommand, for example, uses something called the <code>cycles</code> event as its sampling event.
+The kernel maps this event to a hardware event on the PMU which depends on the manufacturer of the processor.</p>
+<p>Once the sampling counter overflows, a sample is recorded.
+The instruction pointer then stores where the program was interrupted.
+Unfortunately, the instruction pointer may not point at where the overflow happened but rather at where the PMU was interrupted, making it possible that the wrong instructions get counted.
+This is why one always needs to be cautious when looking at graphs such as generated assembly annotated with the frequency of its execution as it might just be one or two instructions off.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>&ldquo;A division or contrast between two things that are or are represented as being opposed or entirely different.&rdquo;&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:2" role="doc-endnote">
+<p><a
+  class="gblog-markdown__link"
+  href="https://queue.acm.org/detail.cfm?id=3212479"
+  
+>https://queue.acm.org/detail.cfm?id=3212479</a>&#160;<a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:3" role="doc-endnote">
+<p>Represented as clock ticks, not seconds &ndash; convert via division by <code>CLOCKS_PER_SEC</code>&#160;<a href="#fnref:3" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:4" role="doc-endnote">
+<p><a
+  class="gblog-markdown__link"
+  href="https://man7.org/linux/man-pages/man2/gettimeofday.2.html#NOTES"
+  
+>https://man7.org/linux/man-pages/man2/gettimeofday.2.html#NOTES</a>&#160;<a href="#fnref:4" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:5" role="doc-endnote">
+<p>For more details on that, see this great talk: <a
+  class="gblog-markdown__link"
+  href="https://www.youtube.com/watch?v=nXaxk27zwlk"
+  
+>https://www.youtube.com/watch?v=nXaxk27zwlk</a>&#160;<a href="#fnref:5" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:6" role="doc-endnote">
+<p>See <a
+  class="gblog-markdown__link"
+  href="http://pramodkumbhar.com/2017/04/summary-of-profiling-tools/"
+  
+>here</a> for a list of over a hundred different profilers and when to use which one&#160;<a href="#fnref:6" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:7" role="doc-endnote">
+<p><code>perf</code> is not available under Windows and also does not work with WSL (Windows Subsystem for Linux)&#160;<a href="#fnref:7" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+    </section>
+  </article>
+
+      </main>
+
+      <footer class="gblog-footer">
+  <nav class="container flex">
+    <div>
+      <section class="flex flex-wrap align-center">
+        
+          <span class="gblog-footer__item gblog-footer__item--row">
+            <svg class="gblog-icon gblog_rss_feed"><use xlink:href="#gblog_rss_feed"></use></svg>
+            <a href="/feed.xml" class="gblog-footer__link">Atom Feed</a>
+          </span>
+        
+        
+          
+
+  
+  
+  
+
+  
+    
+      
+      
+      
+
+      
+        <span class="gblog-footer__item gblog-footer__item--row">
+          
+            <svg class="gblog-icon gblog_email"><use xlink:href="#gblog_email"></use></svg>
+          
+          <a
+            href="https://parcio.ovgu.de/Imprint.html"
+            class="gblog-footer__link"
+          >
+            Imprint
+          </a>
+        </span>
+      
+    
+  
+    
+      
+      
+      
+
+      
+        <span class="gblog-footer__item gblog-footer__item--row">
+          
+            <svg class="gblog-icon gblog_email"><use xlink:href="#gblog_email"></use></svg>
+          
+          <a
+            href="https://parcio.ovgu.de/Contact.html"
+            class="gblog-footer__link"
+          >
+            Contact
+          </a>
+        </span>
+      
+    
+  
+
+
+
+
+
+
+        
+        
+        
+      </section>
+      <section class="flex flex-wrap align-center">
+        <span class="gblog-footer__item">
+          Built with <a href="https://gohugo.io/" class="gblog-footer__link">Hugo</a> and
+          <svg class="gblog-icon gblog_heart"><use xlink:href="#gblog_heart"></use></svg>
+        </span>
+      </section>
+      
+        <section class="flex flex-wrap align-center">
+          <span class="gblog-footer__item">
+            Hosted on <a href="https://pages.github.com/" class="gblog-footer__link">GitHub Pages</a>
+          </span>
+        </section>
+      
+      
+        <section class="flex flex-wrap align-center">
+          <span class="gblog-footer__item">
+            Content licensed under
+            <a href="https://creativecommons.org/licenses/by-sa/4.0/" class="gblog-footer__link no-wrap">CC BY-SA 4.0</a>
+          </span>
+        </section>
+      
+    </div>
+    
+      <div class="flex flex-25 justify-end">
+        <span class="gblog-footer__item text-right">
+          <a class="gblog-footer__link fake-link" href="#" aria-label="Back to top">
+            <svg class="gblog-icon gblog_keyboard_arrow_up">
+              <use xlink:href="#gblog_keyboard_arrow_up"></use>
+            </svg>
+            <span class="hidden-mobile">Back to top</span>
+          </a>
+        </span>
+      </div>
+    
+  </nav>
+</footer>
+
+    </div>
+  </body>
+</html>

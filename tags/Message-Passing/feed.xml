@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <generator uri="https://gohugo.io/" version="0.92.2">Hugo</generator>
+    <title>Message Passing on Parallel Computing and I/O Blog</title>
+        <subtitle>We conduct research and development on parallel systems</subtitle>
+            <link href="https://blog.parcio.de/tags/Message-Passing/" rel="alternate" type="text/html" title="HTML" />
+            <link href="https://blog.parcio.de/tags/Message-Passing/feed.xml" rel="self" type="application/atom+xml" title="Atom" />
+    <updated>2022-07-20T18:39:34+00:00</updated>
+    <id>https://blog.parcio.de/tags/Message-Passing/</id>
+        <entry>
+            <title>heimdallr: Compile time correctness checking for message passing in Rust</title>
+            <link href="https://blog.parcio.de/posts/2021/11/heimdallr/" rel="alternate" type="text/html"  hreflang="en" />
+            <id>https://blog.parcio.de/posts/2021/11/heimdallr/</id>
+                    <author>
+                        <name>Michael Blesel</name>
+                    </author>
+            <published>2021-11-18T00:00:00+00:00</published>
+            <updated>2021-11-18T00:00:00+00:00</updated>
+            <content type="html">
+                &lt;p&gt;In this post we will look at how the Rust programming language and its built-in correctness features can be applied to the message passing parallelization method.
+We will see how Rust&amp;rsquo;s memory safety features can be leveraged to design a message passing library which we call heimdallr.
+It is able to detect parallelization errors at compile time that would go unnoticed by the compiler when using the prevalent message passing interface MPI.&lt;/p&gt;
+&lt;p&gt;For readers who are new to this topic we will start with a very brief synopsis of message passing.
+In the field of high performance computing (HPC), parallel programs are executed on large computing clusters with often hundreds of computing nodes.
+Running an application in parallel on more than one computing node requires different parallelization techniques than multi-threading because the computing nodes do not have shared memory.
+Therefore a mechanism for sharing data between processes running on different nodes is needed.
+In HPC, the standard method of achieving this is called message passing.
+The applications have to explicitly send and receive the data that needs to be shared over a network.
+The most commonly used library for this is called MPI which stands for Message Passing Interface.&lt;/p&gt;
+&lt;p&gt;At the start of an MPI application every participating process is given an ID (often called rank) that can be used to differentiate between them in the code.
+MPI then provides many different send and receive functions with varying semantics such as blocking/non-blocking and synchronous/asynchronous.
+Additionally collective operations such as barriers for synchronization or broadcast/gather operations are provided.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;n&#34;&gt;MPI_Init&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;NULL&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;NULL&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;
+&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;rank&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;n&#34;&gt;MPI_Comm_rank&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;MPI_COMM_WORLD&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rank&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;n&#34;&gt;MPI_Comm_size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;MPI_COMM_WORLD&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;
+&lt;span class=&#34;kt&#34;&gt;double&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;malloc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;sizeof&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;double&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rank&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;42.0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;MPI_Send&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_FLOAT&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_COMM_WORLD&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rank&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;MPI_Recv&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_FLOAT&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_COMM_WORLD&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_STATUS_IGNORE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+
+&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;n&#34;&gt;MPI_Finalize&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Here we can see a simple MPI program.
+After MPI&amp;rsquo;s initialization in line 1 each process asks for the values of their own &lt;code&gt;rank&lt;/code&gt; and the number of overall participating processes (here called &lt;code&gt;size&lt;/code&gt;) in lines 4-5.
+The goal of the program is to send a message containing the contents of the &lt;code&gt;buf&lt;/code&gt; array from process 0 to process 1.
+This message exchange happens in lines 13 and 16, where process 0 uses the &lt;code&gt;MPI_Send&lt;/code&gt; function to send the message and process 1 receives it with the &lt;code&gt;MPI_Recv&lt;/code&gt; function.&lt;/p&gt;
+&lt;p&gt;As we can see, the MPI functions take a lot of arguments but only the first four are important to follow this example.
+First comes a pointer to the buffer that is being sent from and received into.
+The next two arguments specify the number of elements that are sent and their data type, which is needed to calculate the correct number of bytes that will be sent.
+Lastly, the target or source process rank for the operation is specified.
+As mentioned in this example, process 0 targets process 1 with its send operation and process 1 tries to receive the data from process 0.&lt;/p&gt;
+&lt;p&gt;An avid reader might already have spotted that there is a problem in the code of the example.
+The data type of the &lt;code&gt;buf&lt;/code&gt; array is &lt;code&gt;double&lt;/code&gt; but in the MPI function calls &lt;code&gt;MPI_FLOAT&lt;/code&gt; is specified.
+This is in fact a bug and leads to the result that not all of the array&amp;rsquo;s data is transmitted but only half of it.&lt;/p&gt;
+&lt;p&gt;These kinds of parallelization errors can be hard to track down in real programs because no crash will occur here but the results of the program will be wrong.
+Furthermore, the C compiler and the MPI library are not able to detect this error and give the user a warning.
+Programming with MPI has many such pitfalls which are often due to MPI&amp;rsquo;s low-level nature combined with the dangers of C memory management with &lt;code&gt;void&lt;/code&gt; pointers.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;compile-time-correctness-through-rust&#34;&gt;
+        Compile time correctness through Rust
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2021/11/heimdallr/#compile-time-correctness-through-rust&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Compile time correctness through Rust&#34; href=&#34;#compile-time-correctness-through-rust&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Rust is a modern system programming language that focuses on memory and concurrency safety with strong compile time correctness checks.
+In recent times Rust has garnered more and more attention in circles where C is the current predominant language but a more safe solution is desired.
+In the field of HPC, C/C++ and Fortran are by far the most used languages.
+They provide great performance, have been around for a long time and there exists a lot of infrastructure in the form of libraries and tools for them.
+However, these languages do come with their drawbacks which can often be found in aspects like usability, programmability and a general lack of modern features.&lt;/p&gt;
+&lt;p&gt;Developing massive parallel programs for HPC is a complicated task and in our opinion the languages and libraries used should provide the developers with as much help as possible.
+Therefore we asked ourselves whether a language like Rust could provide an easier programming experience for message passing applications by avoiding and detecting as many errors in parallel code as possible at compile time.&lt;/p&gt;
+&lt;p&gt;Out of this research a Rust message passing library called &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://github.com/parcio/heimdallr&#34;
+  
+&gt;heimdallr&lt;/a&gt; was developed.
+heimdallr should currently be seen as a prototype implementation but it already has good examples of correctness checks that are currently nonexistent for MPI.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;eliminating-type-safety-errors-with-generics&#34;&gt;
+        Eliminating type safety errors with generics
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2021/11/heimdallr/#eliminating-type-safety-errors-with-generics&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Eliminating type safety errors with generics&#34; href=&#34;#eliminating-type-safety-errors-with-generics&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;In the previously given example one might ask themselves why it is necessary for the user to manually specify the concrete data type of a buffer when this is information that a compiler should absolutely be able to derive by itself.
+The type safety problems with MPI stem from the fact that the whole API works on untyped memory addresses for data buffers via the use of C&amp;rsquo;s &lt;code&gt;void&lt;/code&gt; pointers to allow the MPI functions to work with any type of data.
+The type information is therefore explicitly discarded and must be manually passed to a MPI function call by the user.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;n&#34;&gt;let&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;HeimdallrClient&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;init&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;env&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;args&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()).&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;unwrap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;let&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mut&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;vec&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mf&#34;&gt;0.0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;id&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;in&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;0.&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;42.0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;send&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;?&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;id&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;receive&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;?&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Here we see an equivalent program written in Rust with our heimdallr message passing library.
+First of all, it is apparent that the message passing code is less verbose when compared to its MPI counterpart.
+Our design principles with heimdallr are safety and usability.
+From the usability perspective we can see that some of the boilerplate code that is necessary in MPI, like for example manually asking for and storing a process&amp;rsquo;s rank variable, is not required with heimdallr.&lt;/p&gt;
+&lt;p&gt;More importantly, the previously discussed type safety issue for sending a data buffer does not come up with heimdallr.
+We are making use of the language&amp;rsquo;s generic programming features to let the compiler handle the type deduction of a transmitted variable.
+This does not only make it more safe but also easier to use for a developer.&lt;/p&gt;
+&lt;p&gt;Of course Rust is by far not the only modern language to provide generic programming features and this interface change to the &lt;code&gt;send&lt;/code&gt; and &lt;code&gt;receive&lt;/code&gt; functions could have been done in a myriad of languages.
+Therefore we should go on to an example where some of Rust&amp;rsquo;s unique features allow us to provide a safer message passing interface to the users.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;ensuring-buffer-safety-for-non-blocking-communication&#34;&gt;
+        Ensuring buffer safety for non-blocking communication
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2021/11/heimdallr/#ensuring-buffer-safety-for-non-blocking-communication&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Ensuring buffer safety for non-blocking communication&#34; href=&#34;#ensuring-buffer-safety-for-non-blocking-communication&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;As previously mentioned, MPI provides multiple send and receive functions with varying semantics.
+The most basic form of message passing is called &lt;em&gt;blocking&lt;/em&gt;.
+When a message passing function is called in this context the sender process is blocked until the data buffer that is being sent is guaranteed to have been processed by the message passing library.
+The receiving process is also blocked until the contents of the incoming message have been safely copied into the receiving data buffer.
+This form of message passing is the most intuitive from a user&amp;rsquo;s perspective but it can also be subpar from a performance perspective due to the resulting idle times for both processes.&lt;/p&gt;
+&lt;p&gt;A solution that is often better suited from the performance perspective is the use of so called &lt;em&gt;non-blocking&lt;/em&gt; communication.
+Here the process of passing the message is handled in the background and the program can continue with its execution almost immediately.
+This type of message passing however does not come without dangers, as we will see in the following code snippet.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;8
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;9
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rank&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;MPI_Isend&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_DOUBLE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_COMM_WORLD&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;req&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;        &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;42.0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rank&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;MPI_Recv&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_DOUBLE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_COMM_WORLD&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;status&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;In this example process 0 tries to send a buffer to process 1 using MPI&amp;rsquo;s non-blocking send function &lt;code&gt;MPI_Isend&lt;/code&gt;.
+The non-blocking send operation in line 2 allows process 0 to continue its execution before the sending of the message has concluded.
+The problem arises in lines 3-4 where process 0 also modifies the contents of the data buffer that is being sent.
+Since the message passing process might still be running this may also modify the contents of the sent message and thereby cause a program error because this behavior was not intended by the programmer.&lt;/p&gt;
+&lt;p&gt;This is a known safety issue with the use of non-blocking communication in MPI.
+A data buffer that is used in a non-blocking operation is in an &lt;em&gt;unsafe&lt;/em&gt; state until it has been made sure that the message passing operation on it has concluded.
+To check the status of a non-blocking operation and thereby the safety status of its data buffer, MPI provides functions like &lt;code&gt;MPI_Wait&lt;/code&gt; that block the current process until the referenced message passing operation is confirmed to be finished.
+The MPI standard requires such a function to be called before accessing a data buffer again that has been used in non-blocking communication.
+Adding a &lt;code&gt;MPI_Wait&lt;/code&gt; call between lines 2-3 of the example code would make this program work correctly.&lt;/p&gt;
+&lt;p&gt;The problem with all of this is that MPI requires the programmer to always remember this behavior and neither the library nor the compiler are able to detect and warn users of potential errors with buffer safety for non-blocking communication.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;leveraging-rusts-ownership-for-buffer-safety&#34;&gt;
+        Leveraging Rust&amp;rsquo;s ownership for buffer safety
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2021/11/heimdallr/#leveraging-rusts-ownership-for-buffer-safety&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Leveraging Rust&amp;rsquo;s ownership for buffer safety&#34; href=&#34;#leveraging-rusts-ownership-for-buffer-safety&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;The core concept of Rust&amp;rsquo;s memory management is the so called &lt;em&gt;ownership&lt;/em&gt; feature.
+Ownership works in a way that every data object in Rust has exactly one owner.
+Once the owner variable goes out of scope the data is automatically deallocated.
+There can be references to an object but only within a limited rule-set.
+A variable can either have an unlimited number of immutable (read-only) references or exactly &lt;strong&gt;one&lt;/strong&gt; mutable reference.
+These limitations allow the Rust compiler to reason about correct memory usage.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;8
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;9
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;id&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;let&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;handle&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;send_nb&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;?&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;handle&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;?&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;in&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;0.&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;42.0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;id&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;receive&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;?&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;This is the heimdallr equivalent of the non-blocking MPI code that we have seen previously.
+The send operation in line 2 makes use of Rust&amp;rsquo;s ownership concept to protect the data buffer that is being sent.
+Since there can be only one owner of the &lt;code&gt;buf&lt;/code&gt; variable, passing it directly to a function call means that the ownership is moved into the function.
+This has the side effect that &lt;code&gt;buf&lt;/code&gt; is no longer accessible from outside the function.
+Therefore it is impossible to modify the data buffer while the message passing operation is running.
+Trying to do so would lead to a compilation error.
+For a user to access the data again they need to request ownership back from the message passing operation, which happens in line 3.
+The &lt;code&gt;data&lt;/code&gt; function called there on the &lt;code&gt;handle&lt;/code&gt; that was returned by the non-blocking send function is an equivalent to &lt;code&gt;MPI_Wait&lt;/code&gt;.
+It blocks until the used data buffer is safe to be accessed again and then returns the ownership to the caller.&lt;/p&gt;
+&lt;p&gt;So in essence it is the same workflow as for an MPI application, but Rust&amp;rsquo;s ownership rules allow the library to be designed in a way where correct and safe usage of non-blocking communication can be enforced at compile time.
+This is a big step up in usability and correctness because it is no longer the users task to remember the implicit rules of non-blocking communication but instead it is a detected program error if the correct procedure is not followed.&lt;/p&gt;
+&lt;p&gt;This is of course just one small example on how the safety features of Rust can be used to design safer interfaces but in our opinion in showcases the possibilities very well.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;conclusion-and-further-reading&#34;&gt;
+        Conclusion and further reading
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2021/11/heimdallr/#conclusion-and-further-reading&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Conclusion and further reading&#34; href=&#34;#conclusion-and-further-reading&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;This blog post is supposed to give a brief overview on the challenges of message passing parallelization and how the programming interfaces used for it could be designed in a safer way.
+Parallel programming is a complex topic and introduces a variety of new error classes.
+Therefore we find it very important that the libraries and tools used for it offer as much help as possible to developers by enforcing correctness and detecting possible errors.&lt;/p&gt;
+&lt;p&gt;The heimdallr library introduced in this post is a prototype implementation of a message passing library that concentrates on the compile time correctness aspects.
+It is not yet feature complete and is mainly supposed to show some of the possibilities for better usability and safety in MPI.&lt;/p&gt;
+&lt;p&gt;To keep this post brief, we have not gone into too much detail about the implementation and some of the open problems with this solution.
+heimdallr does have some open problems which we could not go over here without making this blog way too long.
+We also did not talk about the performance aspects, which is quite an important topic in the context of using it for HPC.&lt;/p&gt;
+&lt;p&gt;If your interest was piqued, a more detailed discussion about the pros and cons of heimdallr can be found in our &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://doi.org/10.1007/978-3-030-90539-2_13&#34;
+  
+&gt;heimdallr paper&lt;/a&gt;.
+There, we also discuss some of the problems with the current implementation and show benchmark results where heimdallr&amp;rsquo;s performance is compared to MPI.&lt;/p&gt;
+&lt;p&gt;If you would like to try out heimdallr or have a look at the code, you can visit our &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://github.com/parcio/heimdallr&#34;
+  
+&gt;GitHub&lt;/a&gt; repository.&lt;/p&gt;
+            </content>  
+                                <category scheme="https://blog.parcio.de/authors/michael.blesel" term="michael.blesel" label="michael.blesel" />  
+                                <category scheme="https://blog.parcio.de/tags/Correctness" term="Correctness" label="Correctness" /> 
+                                <category scheme="https://blog.parcio.de/tags/Message-Passing" term="Message-Passing" label="Message Passing" /> 
+                                <category scheme="https://blog.parcio.de/tags/Rust" term="Rust" label="Rust" />
+        </entry>
+</feed>

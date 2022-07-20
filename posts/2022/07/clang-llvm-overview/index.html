@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html
+  itemscope
+  itemtype="http://schema.org/WebPage"
+  lang="en"
+  class="color-toggle-hidden"
+  
+>
+  <head>
+    <meta charset="UTF-8" />
+<meta name="referrer" content="no-referrer" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="generator" content="Hugo 0.92.2" />
+  <meta name="description" content="Compilers are complex programs with complex requirements. The two most widespread C compilers, GCC and Clang/LLVM, are 10–15 million lines of code behemoths, designed to produce optimal machine code for whatever arbitrary target the user desires. In this blog post I’m going to give an overview of how the Clang/LLVM C compiler works; from processing the source code to writing native binaries." />
+  <meta name="keywords" content="ParCIO,parallel computing,parallel I/O,parallel systems,high-performance computing,storage systems,file systems,parallel programming" />
+    <meta name="author" content="Hannes Winkler" />
+
+    <title>Clang/LLVM overview | Parallel Computing and I/O Blog</title>
+
+    <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+<link
+  rel="icon"
+  type="image/png"
+  sizes="32x32"
+  href="/favicon/favicon-32x32.png"
+/>
+<link
+  rel="icon"
+  type="image/png"
+  sizes="16x16"
+  href="/favicon/favicon-16x16.png"
+/>
+
+    
+
+    
+  <meta
+    property="og:title"
+    content="Clang/LLVM overview"
+  />
+  <meta property="og:site_name" content="Parallel Computing and I/O Blog" />
+  <meta property="og:description" content="Compilers are complex programs with complex requirements. The two most widespread C compilers, GCC and Clang/LLVM, are 10–15 million lines of code behemoths, designed to produce optimal machine code for whatever arbitrary target the user desires. In this blog post I’m going to give an overview of how the Clang/LLVM C compiler works; from processing the source code to writing native binaries." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/" />
+
+<meta property="article:section" content="Posts" />
+    <meta
+      property="article:published_time"
+      content="2022-07-04T00:00:00+00:00"
+    />
+    <meta
+      property="article:modified_time"
+      content="2022-07-04T00:00:00+00:00"
+    />
+
+
+  <meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Clang/LLVM overview" />
+  <meta name="twitter:description" content="Compilers are complex programs with complex requirements. The two most widespread C compilers, GCC and Clang/LLVM, are 10–15 million lines of code behemoths, designed to produce optimal machine code for whatever arbitrary target the user desires. In this blog post I’m going to give an overview of how the Clang/LLVM C compiler works; from processing the source code to writing native binaries." />
+
+<script type="application/ld+json">
+  {
+      "@context": "http://schema.org",
+      "@type": "BlogPosting",
+      "articleSection": "Posts",
+      "name": "Clang/LLVM overview",
+      "url" : "https://blog.parcio.de/posts/2022/07/clang-llvm-overview/",
+      "headline": "Clang/LLVM overview",
+      "description": "Compilers are complex programs with complex requirements. The two most widespread C compilers, GCC and Clang\/LLVM, are 10–15 million lines of code behemoths, designed to produce optimal machine code for whatever arbitrary target the user desires. In this blog post I’m going to give an overview of how the Clang\/LLVM C compiler works; from processing the source code to writing native binaries.",
+      "wordCount" : "3310",
+      "license": "CC BY-SA 4.0",
+      "inLanguage": "en",
+      "isFamilyFriendly": "true",
+      "mainEntityOfPage": {
+          "@type": "WebPage",
+          "@id": "https://blog.parcio.de/posts/2022/07/clang-llvm-overview/"
+      },
+      "keywords" : [ "Teaching" , "EPEA 2021" , "Clang" , "LLVM" ],
+      "author" : [
+          {
+              "@type": "Person",
+              "name": "Hannes Winkler"
+          }
+      ],
+      "copyrightHolder" : "Parallel Computing and I\/O Blog",
+      "copyrightYear" : "2022",
+      "dateCreated": "2022-07-04T00:00:00.00Z",
+      "datePublished": "2022-07-04T00:00:00.00Z",
+      "dateModified": "2022-07-04T00:00:00.00Z",
+      "publisher":{
+          "@type":"Organization",
+          "name": "Parallel Computing and I/O Blog",
+          "url": "https://blog.parcio.de/",
+          "logo": {
+              "@type": "ImageObject",
+              "url": "https://blog.parcio.de/brand.svg",
+              "width":"32",
+              "height":"32"
+          }
+      }
+  }
+  </script>
+
+
+    <script src="/js/main-76d70e50.bundle.min.js"></script>
+
+<link
+  rel="preload"
+  as="font"
+  href="/fonts/Metropolis.woff2"
+  type="font/woff2"
+  crossorigin="anonymous"
+/>
+<link
+  rel="preload"
+  as="font"
+  href="/fonts/LiberationSans.woff2"
+  type="font/woff2"
+  crossorigin="anonymous"
+/>
+<link
+  rel="preload"
+  as="font"
+  href="/fonts/GeekblogIcons.woff2"
+  type="font/woff2"
+  crossorigin="anonymous"
+/>
+
+<link
+  rel="preload"
+  href="/main-2a41d6c0.min.css"
+  as="style"
+/>
+<link
+  rel="stylesheet"
+  href="/main-2a41d6c0.min.css"
+  media="all"
+/>
+
+<link
+  rel="preload"
+  href="/mobile-17932c20.min.css"
+  as="style"
+/>
+<link
+  rel="stylesheet"
+  href="/mobile-17932c20.min.css"
+  media="screen and (max-width: 45rem)"
+/>
+
+<link
+  rel="preload"
+  href="/print-8a905a2e.min.css"
+  as="style"
+/>
+<link
+  rel="stylesheet"
+  href="/print-8a905a2e.min.css"
+  media="print"
+/>
+
+<link
+  rel="preload"
+  href="/custom.css"
+  as="style"
+/>
+<link
+  rel="stylesheet"
+  href="/custom.css"
+  media="all"
+/>
+  <link href="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/" rel="canonical" type="text/html" />
+    <link href="https://blog.parcio.de/feed.xml" rel="alternate" type="application/atom+xml" title="Parallel Computing and I/O Blog Atom Feed" />
+
+<!-- Made with Geekblog theme https://github.com/thegeeklab/hugo-geekblog -->
+
+    
+
+  </head>
+
+  <body>
+    
+  <!-- geekblog include: sprites/geekblog.svg -->
+  <svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><defs><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_arrow_back" xmlns="http://www.w3.org/2000/svg"><path d="M31.999 14.035v3.93H7.673l11.134 11.228L16 32 .001 16.001 16 .002l2.807 2.807L7.673 14.037h24.326z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_arrow_left" xmlns="http://www.w3.org/2000/svg"><path d="M7.954 17.965v5.988L.001 16l7.953-7.953v5.988H32v3.93H7.954z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_arrow_right" xmlns="http://www.w3.org/2000/svg"><path d="M24.046 14.035V8.047L31.999 16l-7.953 7.953v-5.988H0v-3.93h24.046z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_bitbucket" xmlns="http://www.w3.org/2000/svg"><path d="M15.905 13.355c.189 1.444-1.564 2.578-2.784 1.839-1.375-.602-1.375-2.784-.034-3.403 1.151-.705 2.818.223 2.818 1.564zm1.907-.361c-.309-2.44-3.076-4.056-5.328-3.042-1.426.636-2.389 2.148-2.32 3.747.086 2.097 2.08 3.815 4.176 3.626s3.729-2.234 3.472-4.331zm4.108-9.315c-.756-.997-2.045-1.169-3.179-1.358-3.214-.516-6.513-.533-9.727.034-1.066.172-2.269.361-2.939 1.323 1.1 1.031 2.664 1.186 4.073 1.358 2.544.327 5.156.344 7.699.017 1.426-.172 3.008-.309 4.073-1.375zm.979 17.788c-.481 1.684-.206 3.953-1.994 4.932-3.076 1.701-6.806 1.89-10.191 1.289-1.787-.327-3.884-.894-4.864-2.578-.43-1.65-.705-3.334-.98-5.018l.103-.275.309-.155c5.121 3.386 12.288 3.386 17.427 0 .808.241.206 1.22.189 1.805zM26.01 4.951c-.584 3.764-1.255 7.51-1.908 11.257-.189 1.1-1.255 1.719-2.148 2.183-3.214 1.615-6.96 1.89-10.483 1.512-2.389-.258-4.829-.894-6.771-2.389-.911-.705-.911-1.908-1.083-2.922-.602-3.523-1.289-7.046-1.719-10.604.206-1.547 1.942-2.217 3.231-2.698C6.848.654 8.686.362 10.508.19c3.884-.378 7.854-.241 11.618.859 1.341.395 2.784.945 3.695 2.097.412.533.275 1.203.189 1.805z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_bookmark" xmlns="http://www.w3.org/2000/svg"><path d="M20.357 5.856q1.157 0 2.043.851t.885 2.008v23.284l-10.212-4.357-10.144 4.357V8.715q0-1.157.885-2.008t2.042-.851h14.502zm5.787 18.859V5.856q0-1.157-.851-2.042t-2.008-.885H8.715q0-1.157.885-2.042t2.043-.885h14.502q1.157 0 2.043.885t.885 2.042v23.216z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_brightness_auto" xmlns="http://www.w3.org/2000/svg"><path d="M16.846 18.938h2.382L15.22 7.785h-2.44L8.772 18.938h2.382l.871-2.44h3.95zm7.087-9.062L27.999 14l-4.066 4.124v5.809h-5.809L14 27.999l-4.124-4.066H4.067v-5.809L.001 14l4.066-4.124V4.067h5.809L14 .001l4.124 4.066h5.809v5.809zm-11.385 4.937L14 10.282l1.452 4.531h-2.904z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_brightness_dark" xmlns="http://www.w3.org/2000/svg"><path d="M14 21.435q3.079 0 5.257-2.178T21.435 14t-2.178-5.257T14 6.565q-1.51 0-3.079.697 1.917.871 3.108 2.701T15.22 14t-1.191 4.037-3.108 2.701q1.568.697 3.079.697zm9.933-11.559L27.999 14l-4.066 4.124v5.809h-5.809L14 27.999l-4.124-4.066H4.067v-5.809L.001 14l4.066-4.124V4.067h5.809L14 .001l4.124 4.066h5.809v5.809z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_brightness_light" xmlns="http://www.w3.org/2000/svg"><path d="M14 21.435q3.079 0 5.257-2.178T21.435 14t-2.178-5.257T14 6.565 8.743 8.743 6.565 14t2.178 5.257T14 21.435zm9.933-3.311v5.809h-5.809L14 27.999l-4.124-4.066H4.067v-5.809L.001 14l4.066-4.124V4.067h5.809L14 .001l4.124 4.066h5.809v5.809L27.999 14z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_check" xmlns="http://www.w3.org/2000/svg"><path d="M8.885 20.197L25.759 3.323l2.24 2.24L8.885 24.677 0 15.792l2.24-2.24z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_check_circle_outline" xmlns="http://www.w3.org/2000/svg"><path d="M14 25.239q4.601 0 7.92-3.319T25.239 14 21.92 6.08 14 2.761 6.08 6.08 2.761 14t3.319 7.92T14 25.239zM14 0q5.784 0 9.892 4.108T28 14t-4.108 9.892T14 28t-9.892-4.108T0 14t4.108-9.892T14 0zm6.441 7.822l1.972 1.972-11.239 11.239L4.207 14l1.972-1.972 4.995 4.995z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_clear" xmlns="http://www.w3.org/2000/svg"><path d="M32 3.222L19.222 16 32 28.778l-3.221 3.221-12.778-12.778L3.223 31.999.002 28.778 12.78 16 .002 3.222 3.223.001l12.778 12.778L28.779.001z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_cloud_off" xmlns="http://www.w3.org/2000/svg"><path d="M9.023 10.5H7q-1.914 0-3.281 1.395t-1.367 3.309 1.367 3.281T7 19.852h11.375zM3.5 4.976l1.477-1.477L24.5 23.022l-1.477 1.477-2.352-2.297H6.999q-2.898 0-4.949-2.051t-2.051-4.949q0-2.844 1.969-4.867t4.758-2.133zm19.086 5.578q2.242.164 3.828 1.832T28 16.351q0 3.008-2.461 4.758l-1.695-1.695q1.805-.984 1.805-3.063 0-1.422-1.039-2.461t-2.461-1.039h-1.75v-.602q0-2.68-1.859-4.539t-4.539-1.859q-1.531 0-2.953.711l-1.75-1.695Q11.431 3.5 14.001 3.5q2.953 0 5.496 2.078t3.09 4.977z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_code" xmlns="http://www.w3.org/2000/svg"><path d="M9.917 24.5a1.75 1.75 0 10-3.501.001 1.75 1.75 0 003.501-.001zm0-21a1.75 1.75 0 10-3.501.001A1.75 1.75 0 009.917 3.5zm11.666 2.333a1.75 1.75 0 10-3.501.001 1.75 1.75 0 003.501-.001zm1.75 0a3.502 3.502 0 01-1.75 3.026c-.055 6.581-4.721 8.039-7.82 9.023-2.898.911-3.846 1.349-3.846 3.117v.474a3.502 3.502 0 011.75 3.026c0 1.932-1.568 3.5-3.5 3.5s-3.5-1.568-3.5-3.5c0-1.294.711-2.424 1.75-3.026V6.526A3.502 3.502 0 014.667 3.5c0-1.932 1.568-3.5 3.5-3.5s3.5 1.568 3.5 3.5a3.502 3.502 0 01-1.75 3.026v9.06c.93-.456 1.914-.766 2.807-1.039 3.391-1.075 5.323-1.878 5.359-5.687a3.502 3.502 0 01-1.75-3.026c0-1.932 1.568-3.5 3.5-3.5s3.5 1.568 3.5 3.5z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_contacts" xmlns="http://www.w3.org/2000/svg"><path d="M22.688 22.688v-2q0-1.5-2.281-2.438t-4.406-.938-4.406.938-2.281 2.438v2h13.375zM16 9q-1.25 0-2.125.875T13 12t.875 2.125T16 15t2.125-.875T19 12t-.875-2.125T16 9zm10.688-3.687q1.063 0 1.844.813t.781 1.875v16q0 1.063-.781 1.875t-1.844.813H5.313q-1.063 0-1.844-.813t-.781-1.875v-16q0-1.063.781-1.875t1.844-.813h21.375zM5.313 32v-2.688h21.375V32H5.313zM26.688 0v2.688H5.313V0h21.375z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_copy" xmlns="http://www.w3.org/2000/svg"><path d="M23.502 25.438V7.626H9.562v17.812h13.94zm0-20.315q1.013 0 1.787.745t.774 1.757v17.812q0 1.013-.774 1.787t-1.787.774H9.562q-1.013 0-1.787-.774t-.774-1.787V7.625q0-1.013.774-1.757t1.787-.745h13.94zM19.689 0v2.562H4.438v17.812H1.936V2.562q0-1.013.745-1.787T4.438.001h15.251z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_create" xmlns="http://www.w3.org/2000/svg"><path d="M31.499 7.167l-3.25 3.25-6.666-6.666 3.25-3.25q.5-.5 1.25-.5t1.25.5l4.166 4.166q.5.5.5 1.25t-.5 1.25zM.001 25.333L19.667 5.667l6.666 6.666L6.667 31.999H.001v-6.666z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_dangerous" xmlns="http://www.w3.org/2000/svg"><path d="M21.802 19.833L15.969 14l5.833-5.833-1.969-1.969L14 12.031 8.167 6.198 6.198 8.167 12.031 14l-5.833 5.833 1.969 1.969L14 15.969l5.833 5.833zM19.833 0L28 8.167v11.666L19.833 28H8.167L0 19.833V8.167L8.167 0h11.666z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_date" xmlns="http://www.w3.org/2000/svg"><path d="M27.192 28.844V11.192H4.808v17.652h22.384zm0-25.689q1.277 0 2.253.976t.976 2.253v22.459q0 1.277-.976 2.216t-2.253.939H4.808q-1.352 0-2.291-.901t-.939-2.253V6.385q0-1.277.939-2.253t2.291-.976h1.577V.001h3.23v3.155h12.769V.001h3.23v3.155h1.577zm-3.155 11.267v3.155h-3.23v-3.155h3.23zm-6.46 0v3.155h-3.155v-3.155h3.155zm-6.384 0v3.155h-3.23v-3.155h3.23z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_download" xmlns="http://www.w3.org/2000/svg"><path d="M2.866 28.209h26.269v3.79H2.866v-3.79zm26.268-16.925L16 24.418 2.866 11.284h7.493V.001h11.283v11.283h7.493z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_email" xmlns="http://www.w3.org/2000/svg"><path d="M28.845 9.615v-3.23L16 14.422 3.155 6.385v3.23L16 17.577zm0-6.46q1.277 0 2.216.977T32 6.385v19.23q0 1.277-.939 2.253t-2.216.977H3.155q-1.277 0-2.216-.977T0 25.615V6.385q0-1.277.939-2.253t2.216-.977h25.69z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_error_outline" xmlns="http://www.w3.org/2000/svg"><path d="M14 25.239q4.601 0 7.92-3.319T25.239 14 21.92 6.08 14 2.761 6.08 6.08 2.761 14t3.319 7.92T14 25.239zM14 0q5.784 0 9.892 4.108T28 14t-4.108 9.892T14 28t-9.892-4.108T0 14t4.108-9.892T14 0zm-1.38 6.967h2.761v8.413H12.62V6.967zm0 11.239h2.761v2.826H12.62v-2.826z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_fire" xmlns="http://www.w3.org/2000/svg"><path d="M17.689 21.998q-.32.32-.8.576t-.864.384q-1.152.384-2.272.032t-1.888-.992q-.128-.128-.096-.256t.16-.192q1.216-.384 1.92-1.216t.96-1.792q.192-.896-.064-1.728t-.384-1.728q-.128-.704-.096-1.376t.288-1.312q0-.128.128-.128t.192.064q.384.832.992 1.472t1.28 1.216 1.216 1.248.672 1.568q.064.384.064.704.064.96-.32 1.92t-1.088 1.536zm3.84-10.944q-.768-.704-1.6-1.28t-1.6-1.344q-1.536-1.536-2.016-3.584t.16-4.16q.128-.32-.096-.544t-.544-.096q-.768.32-1.44.768t-1.312.896q-1.984 1.664-3.136 3.936T8.633 10.51t.8 5.088q0 .128.032.256t.032.256q0 .576-.512.832t-1.024-.192q-.128-.192-.192-.32-1.024-1.28-1.376-2.912t-.096-3.232q.064-.384-.288-.576t-.608.128q-1.28 1.664-1.856 3.68t-.448 4.064q0 .576.096 1.184t.288 1.184q.448 1.536 1.216 2.816 1.216 2.048 3.264 3.424t4.416 1.696q2.496.32 5.024-.256t4.448-2.304q1.408-1.344 2.208-3.104t.864-3.68-.704-3.712q-.064-.128-.096-.224t-.096-.224q-.576-1.088-1.28-1.984-.256-.384-.544-.704t-.672-.64z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_git" xmlns="http://www.w3.org/2000/svg"><path d="M27.472 12.753L15.247.529a1.803 1.803 0 00-2.55 0l-2.84 2.84 2.137 2.137a2.625 2.625 0 013.501 3.501l3.499 3.499a2.625 2.625 0 11-1.237 1.237l-3.499-3.499c-.083.04-.169.075-.257.106v7.3a2.626 2.626 0 11-1.75 0v-7.3a2.626 2.626 0 01-1.494-3.607L8.62 4.606l-8.09 8.09a1.805 1.805 0 000 2.551l12.225 12.224a1.803 1.803 0 002.55 0l12.168-12.168a1.805 1.805 0 000-2.551z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_github" xmlns="http://www.w3.org/2000/svg"><path d="M16 .394c8.833 0 15.999 7.166 15.999 15.999 0 7.062-4.583 13.062-10.937 15.187-.813.146-1.104-.354-1.104-.771 0-.521.021-2.25.021-4.396 0-1.5-.5-2.458-1.083-2.958 3.562-.396 7.312-1.75 7.312-7.896 0-1.75-.625-3.167-1.646-4.291.167-.417.708-2.042-.167-4.25-1.333-.417-4.396 1.646-4.396 1.646a15.032 15.032 0 00-8 0S8.937 6.602 7.603 7.018c-.875 2.208-.333 3.833-.167 4.25-1.021 1.125-1.646 2.542-1.646 4.291 0 6.125 3.729 7.5 7.291 7.896-.458.417-.875 1.125-1.021 2.146-.917.417-3.25 1.125-4.646-1.333-.875-1.521-2.458-1.646-2.458-1.646-1.562-.021-.104.979-.104.979 1.042.479 1.771 2.333 1.771 2.333.938 2.854 5.396 1.896 5.396 1.896 0 1.333.021 2.583.021 2.979 0 .417-.292.917-1.104.771C4.582 29.455-.001 23.455-.001 16.393-.001 7.56 7.165.394 15.998.394zM6.063 23.372c.042-.083-.021-.187-.146-.25-.125-.042-.229-.021-.271.042-.042.083.021.187.146.25.104.062.229.042.271-.042zm.646.709c.083-.062.062-.208-.042-.333-.104-.104-.25-.146-.333-.062-.083.062-.062.208.042.333.104.104.25.146.333.062zm.625.937c.104-.083.104-.25 0-.396-.083-.146-.25-.208-.354-.125-.104.062-.104.229 0 .375s.271.208.354.146zm.875.875c.083-.083.042-.271-.083-.396-.146-.146-.333-.167-.417-.062-.104.083-.062.271.083.396.146.146.333.167.417.062zm1.187.521c.042-.125-.083-.271-.271-.333-.167-.042-.354.021-.396.146s.083.271.271.312c.167.062.354 0 .396-.125zm1.313.104c0-.146-.167-.25-.354-.229-.187 0-.333.104-.333.229 0 .146.146.25.354.229.187 0 .333-.104.333-.229zm1.208-.208c-.021-.125-.187-.208-.375-.187-.187.042-.312.167-.292.312.021.125.187.208.375.167s.312-.167.292-.292z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_gitlab" xmlns="http://www.w3.org/2000/svg"><path d="M1.629 11.034L14 26.888.442 17.048a1.09 1.09 0 01-.39-1.203l1.578-4.811zm7.217 0h10.309l-5.154 15.854zM5.753 1.475l3.093 9.559H1.63l3.093-9.559a.548.548 0 011.031 0zm20.618 9.559l1.578 4.811c.141.437-.016.922-.39 1.203l-13.558 9.84 12.371-15.854zm0 0h-7.216l3.093-9.559a.548.548 0 011.031 0z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_heart" xmlns="http://www.w3.org/2000/svg"><path d="M16 29.714a1.11 1.11 0 01-.786-.321L4.072 18.643c-.143-.125-4.071-3.714-4.071-8 0-5.232 3.196-8.357 8.535-8.357 3.125 0 6.053 2.464 7.464 3.857 1.411-1.393 4.339-3.857 7.464-3.857 5.339 0 8.535 3.125 8.535 8.357 0 4.286-3.928 7.875-4.089 8.035L16.785 29.392c-.214.214-.5.321-.786.321z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_info_outline" xmlns="http://www.w3.org/2000/svg"><path d="M12.62 9.793V6.967h2.761v2.826H12.62zM14 25.239q4.601 0 7.92-3.319T25.239 14 21.92 6.08 14 2.761 6.08 6.08 2.761 14t3.319 7.92T14 25.239zM14 0q5.784 0 9.892 4.108T28 14t-4.108 9.892T14 28t-9.892-4.108T0 14t4.108-9.892T14 0zm-1.38 21.033V12.62h2.761v8.413H12.62z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_keyboard_arrow_down" xmlns="http://www.w3.org/2000/svg"><path d="M3.281 5.36L14 16.079 24.719 5.36 28 8.641l-14 14-14-14z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_keyboard_arrow_left" xmlns="http://www.w3.org/2000/svg"><path d="M25.875 28.25L22.125 32 6.126 16.001 22.125.002l3.75 3.75-12.25 12.25z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_keyboard_arrow_right" xmlns="http://www.w3.org/2000/svg"><path d="M6.125 28.25L18.375 16 6.125 3.75 9.875 0l15.999 15.999L9.875 31.998z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_keyboard_arrow_up" xmlns="http://www.w3.org/2000/svg"><path d="M24.719 22.64L14 11.921 3.281 22.64 0 19.359l14-14 14 14z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_link" xmlns="http://www.w3.org/2000/svg"><path d="M24.037 7.963q3.305 0 5.634 2.366T32 16t-2.329 5.671-5.634 2.366h-6.46v-3.08h6.46q2.028 0 3.493-1.465t1.465-3.493-1.465-3.493-3.493-1.465h-6.46v-3.08h6.46zM9.615 17.578v-3.155h12.77v3.155H9.615zM3.005 16q0 2.028 1.465 3.493t3.493 1.465h6.46v3.08h-6.46q-3.305 0-5.634-2.366T0 16.001t2.329-5.671 5.634-2.366h6.46v3.08h-6.46q-2.028 0-3.493 1.465t-1.465 3.493z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_menu" xmlns="http://www.w3.org/2000/svg"><path d="M.001 5.334h31.998v3.583H.001V5.334zm0 12.416v-3.5h31.998v3.5H.001zm0 8.916v-3.583h31.998v3.583H.001z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_notifications" xmlns="http://www.w3.org/2000/svg"><path d="M25.846 22.154l3.308 3.308v1.615H2.847v-1.615l3.308-3.308V14q0-3.846 1.961-6.692t5.423-3.692V2.462q0-1 .692-1.731T16 0t1.769.731.692 1.731v1.154q3.461.846 5.423 3.692T25.846 14v8.154zM16 32q-1.385 0-2.346-.923t-.962-2.308h6.615q0 1.308-1 2.269T15.999 32z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_person" xmlns="http://www.w3.org/2000/svg"><path d="M16 20.023q5.052 0 10.526 2.199t5.473 5.754v4.023H0v-4.023q0-3.555 5.473-5.754t10.526-2.199zM16 16q-3.275 0-5.614-2.339T8.047 8.047t2.339-5.661T16 0t5.614 2.386 2.339 5.661-2.339 5.614T16 16z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_pin" xmlns="http://www.w3.org/2000/svg"><path d="M17.6 19.2h9.6v-1.6L22.4 16V3.2l4.8-1.6V0H4.8v1.6l4.8 1.6V16l-4.8 1.6v1.6h9.6v11.2L16 32l1.6-1.6V19.2z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_rss_feed" xmlns="http://www.w3.org/2000/svg"><path d="M-.481 12.048q8.482 0 14.457 5.976t5.976 14.457h-5.879q0-5.976-4.289-10.264T-.48 17.928v-5.879zm0-11.565q13.204 0 22.601 9.397t9.397 22.601h-5.783q0-10.891-7.662-18.553T-.481 6.266V.483zm0 27.468q0-1.831 1.301-3.132t3.229-1.301 3.181 1.253 1.253 3.181-1.301 3.229-3.132 1.301q-1.928 0-3.229-1.301T-.48 27.952z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_search" xmlns="http://www.w3.org/2000/svg"><path d="M11.925 20.161q3.432 0 5.834-2.402t2.402-5.834-2.402-5.834-5.834-2.402-5.834 2.402-2.402 5.834 2.402 5.834 5.834 2.402zm10.981 0L32 29.255 29.255 32l-9.094-9.094v-1.458l-.515-.515q-3.26 2.831-7.721 2.831-4.976 0-8.45-3.432T.001 11.925t3.474-8.45 8.45-3.474 8.407 3.474 3.432 8.45q0 1.802-.858 4.075t-1.973 3.646l.515.515h1.458z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_security" xmlns="http://www.w3.org/2000/svg"><path d="M16 0l13.072 5.855v8.715q0 6.059-3.745 11.063T16 31.999q-5.583-1.362-9.327-6.366T2.928 14.57V5.855zm0 16v13.004q4.017-1.294 6.808-4.868T26.144 16H16zm0 0V3.2L5.856 7.693v8.306H16z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_star" xmlns="http://www.w3.org/2000/svg"><path d="M14 22.052L5.324 27.31l2.3-9.859L0 10.813l10.056-.854L14 .692l3.944 9.267L28 10.813l-7.624 6.638 2.3 9.859z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_tag" xmlns="http://www.w3.org/2000/svg"><path d="M17.52 17.52v-7.041h-7.041v7.041h7.041zM28 10.479h-7.041v7.041H28v3.439h-7.041V28H17.52v-7.041h-7.041V28H7.04v-7.041H-.001V17.52H7.04v-7.041H-.001V7.04H7.04V-.001h3.439V7.04h7.041V-.001h3.439V7.04H28v3.439z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_timer" xmlns="http://www.w3.org/2000/svg"><path d="M16 29q4.428 0 7.536-3.143t3.107-7.571-3.107-7.536T16 7.643 8.464 10.75t-3.107 7.536 3.107 7.571T16 29zM26.714 9.786q1.214 1.571 2.107 4.036t.893 4.464q0 5.643-4 9.678T16 32t-9.714-4.036-4-9.678 4-9.678T16 4.572q1.929 0 4.464.929t4.107 2.143l2.143-2.214q1.143.929 2.143 2.143zM14.5 19.857v-9.143h3v9.143h-3zM20.571.001v3.071h-9.143V.001h9.143z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_tree" xmlns="http://www.w3.org/2000/svg"><path d="M32 14.423H20.808V9.616h-3.23v12.77h3.23v-4.807H32v12.845H20.808v-4.807h-6.385v-16h-3.23v4.807H.001V1.579h11.192v4.807h9.615V1.579H32v12.845z"/></svg></defs></svg>
+
+
+
+
+    <div
+      class="wrapper "
+    >
+      <header class="gblog-header">
+  <div class="container flex flex-wrap">
+    <div class="gblog-header__col-1 flex justify-start hidden-mobile"></div>
+    <div class="gblog-header__col-2 flex align-center justify-center ">
+      <a class="gblog-header__link" rel="me" href="https://blog.parcio.de/">
+        <span class="gblog-brand flex align-center justify-center">
+          <img
+            class="gblog-brand__img"
+            src="/brand.svg"
+            alt=""
+          />
+          <span class="gblog-brand__title">Parallel Computing and I/O Blog</span>
+        </span>
+        
+          <span class="gblog-brand__subtitle flex align-center justify-center">We conduct research and development on parallel systems</span>
+        
+      </a>
+    </div>
+    <div class="gblog-header__col-3 flex justify-end">
+      <span id="gblog-color-theme">
+        <svg class="gblog-icon gblog_brightness_dark">
+          <title></title>
+          <use xlink:href="#gblog_brightness_dark"></use>
+        </svg>
+        <svg class="gblog-icon gblog_brightness_light">
+          <title></title>
+          <use xlink:href="#gblog_brightness_light"></use>
+        </svg>
+        <svg class="gblog-icon gblog_brightness_auto">
+          <title></title>
+          <use xlink:href="#gblog_brightness_auto"></use>
+        </svg>
+      </span>
+    </div>
+  </div>
+</header>
+<nav class="gblog-nav">
+  <input type="checkbox" id="menu-control" class="hidden" />
+  <div class="gblog-nav__control">
+    <label for="menu-control" class="flex align-center justify-center">
+      <svg class="gblog-icon gblog_menu"><use xlink:href="#gblog_menu"></use></svg>
+      <svg class="gblog-icon gblog_clear"><use xlink:href="#gblog_clear"></use></svg>
+      <span>Navigation</span>
+    </label>
+  </div>
+  <ul class="gblog-nav__list container flex flex-wrap justify-center menu-content">
+    
+    
+    
+      
+
+  
+  
+  
+
+  
+    
+      
+      
+      
+
+      
+        <li>
+          <a
+            href="/tags/Correctness/"
+            class="gblog-nav__entry"
+          >
+            <span class="flex align-center">
+              
+                <svg class="gblog-icon gblog_bookmark"><use xlink:href="#gblog_bookmark"></use></svg>
+              
+              <span>
+                Correctness
+              </span>
+            </span>
+          </a>
+        </li>
+      
+    
+  
+    
+      
+      
+      
+
+      
+        <li>
+          <a
+            href="/tags/Efficiency/"
+            class="gblog-nav__entry"
+          >
+            <span class="flex align-center">
+              
+                <svg class="gblog-icon gblog_bookmark"><use xlink:href="#gblog_bookmark"></use></svg>
+              
+              <span>
+                Efficiency
+              </span>
+            </span>
+          </a>
+        </li>
+      
+    
+  
+    
+      
+      
+      
+
+      
+        <li>
+          <a
+            href="https://parcio.ovgu.de/"
+            class="gblog-nav__entry"
+          >
+            <span class="flex align-center">
+              
+                <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+              
+              <span>
+                ParCIO Website
+              </span>
+            </span>
+          </a>
+        </li>
+      
+    
+  
+
+
+
+
+
+
+    
+  </ul>
+</nav>
+
+
+
+      <main class="gblog-page container">
+        
+  <article class="gblog-post">
+    <header class="gblog-post__header">
+      
+      
+
+
+      <h1 class="gblog-post__title">Clang/LLVM overview</h1>
+
+      
+        <div class="flex flex-wrap align-center gblog-post__meta gblog-post__meta--head">
+          <span class="flex align-center no-wrap">
+  <svg class="gblog-icon gblog_date"><use xlink:href="#gblog_date"></use></svg>
+  <span class="gblog-post__tag">
+    <time datetime="2022-07-04T00:00:00Z">
+      
+      Jul 4, 2022
+    </time>
+  </span>
+</span>
+
+<span class="flex align-center no-wrap">
+  <svg class="gblog-icon gblog_timer"><use xlink:href="#gblog_timer"></use></svg>
+  <span class="gblog-post__tag">16 min read</span>
+</span>
+
+
+
+
+
+  
+    
+    
+      
+        <span class="flex align-center no-wrap">
+          <svg class="gblog-icon gblog_person"><use xlink:href="#gblog_person"></use></svg>
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a class="gblog-button__link" href="/authors/hannes.winkler/" title="All posts of this author">
+      Hannes Winkler
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+
+
+
+
+  
+    
+    
+      
+        <span class="flex align-center no-wrap">
+          <svg class="gblog-icon gblog_bookmark"><use xlink:href="#gblog_bookmark"></use></svg>
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a
+      class="gblog-button__link"
+      href="/tags/Clang/"
+      title="All posts tagged with 'Clang'"
+    >
+      Clang
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+    
+    
+      
+        <span class="flex align-center">
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a
+      class="gblog-button__link"
+      href="/tags/EPEA-2021/"
+      title="All posts tagged with 'EPEA 2021'"
+    >
+      EPEA 2021
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+    
+    
+      
+        <span class="flex align-center">
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a
+      class="gblog-button__link"
+      href="/tags/LLVM/"
+      title="All posts tagged with 'LLVM'"
+    >
+      LLVM
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+    
+    
+      
+        <span class="flex align-center">
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a
+      class="gblog-button__link"
+      href="/tags/Teaching/"
+      title="All posts tagged with 'Teaching'"
+    >
+      Teaching
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+
+
+
+
+
+
+        </div>
+      
+    </header>
+    <section class="gblog-markdown">
+      <p>Compilers are complex programs with complex requirements.
+The two most widespread C compilers, GCC and Clang/LLVM, are <strong>10&ndash;15 million</strong> lines of code behemoths, designed to produce optimal machine code for whatever arbitrary target the user desires.
+In this blog post I&rsquo;m going to give an overview of how the Clang/LLVM C compiler works; from processing the source code to writing native binaries.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h1 id="1-introduction">
+        1. Introduction
+    </h1>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#1-introduction" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 1. Introduction" href="#1-introduction">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>First of all, what is a compiler?</p>
+<p>A computer (or CPU, rather) executes binary <strong>machine code</strong>.
+The human-readable form of machine code is called <strong>assembly code</strong>.
+However, assembly code is very low-level and very unnatural to write for humans.
+So we write our programs in higher-level programming languages like <em>C</em>, <em>C++</em>, <em>Rust</em>, etc. instead and let a compiler translate that source code into machine code.<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup></p>
+<p>
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  <div class="flex justify-center">
+    <figure class="gblog-post__figure">
+      <a class="gblog-markdown__link--raw" href="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compiler-terminology.png">
+        <picture>
+          <source
+            
+              srcset="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compiler-terminology_huce7e72b373dc32be6682a8c9068de3e7_41292_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compiler-terminology_huce7e72b373dc32be6682a8c9068de3e7_41292_1200x0_resize_box_3.png 1200w" sizes="100vw"
+            
+          />
+          <img
+            loading="lazy"
+            src="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compiler-terminology_huce7e72b373dc32be6682a8c9068de3e7_41292_1800x0_resize_box_3.png"
+            alt="Compiler terminology"
+          />
+        </picture>
+      </a>
+      
+        <figcaption>
+          Compiler terminology (<a
+  class="gblog-markdown__link"
+  href="https://cs.lmu.edu/~ray/images/staticcompilation.png"
+  
+>Ray Toal, Intro to Compilers</a> (edited) (License: unknown))
+        </figcaption>
+      
+    </figure>
+  </div>
+
+
+
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  <div class="flex justify-center">
+    <figure class="gblog-post__figure">
+      <a class="gblog-markdown__link--raw" href="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compilation-example.png">
+        <picture>
+          <source
+            
+              srcset="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compilation-example_hu3d5862152994eb6732f4cf05fbb2ce2f_28947_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compilation-example_hu3d5862152994eb6732f4cf05fbb2ce2f_28947_1200x0_resize_box_3.png 1200w" sizes="100vw"
+            
+          />
+          <img
+            loading="lazy"
+            src="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compilation-example_hu3d5862152994eb6732f4cf05fbb2ce2f_28947_1800x0_resize_box_3.png"
+            alt="Example compilation (C source code to x86-64 assembly)"
+          />
+        </picture>
+      </a>
+      
+        <figcaption>
+          Example compilation (C source code to x86-64 assembly)
+        </figcaption>
+      
+    </figure>
+  </div>
+
+</p>
+<p>There are many more compilers than GCC and Clang, for a wide variety of programming languages.</p>
+<p>One can distinguish between two kinds of compilers:</p>
+<ol>
+<li><strong>AOT (ahead-of-time) compilers.</strong>
+These are compilers where all of the source code is compiled to target code before the program is run.
+Basically, every C/C++ compiler is an AOT compiler for example.</li>
+<li><strong>JIT (just-in-time) compilers.</strong>
+JIT compilers compile code even <em>while</em> the program is running.
+Examples: <a
+  class="gblog-markdown__link"
+  href="https://v8.dev/"
+  
+>Chromium&rsquo;s JavaScript engine</a>, <a
+  class="gblog-markdown__link"
+  href="https://dart.dev/overview"
+  
+>Dart</a>, <a
+  class="gblog-markdown__link"
+  href="https://luajit.org/"
+  
+>LuaJIT</a></li>
+</ol>
+<p>At first, this sounds like JIT is a lot slower than AOT compilation but that&rsquo;s not necessarily true.
+JIT compilers have more information about the machine/CPU they&rsquo;re targetting and can take that into account when compiling.
+AOT compilers, on the other hand, mostly produce code for the &ldquo;lowest common denominator&rdquo;<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>, if you don&rsquo;t explicitly tell it for what target it should tune the code.
+So even if you have the very latest Intel 12th generation CPU with the very latest feature set, your compiler will not make use of those features when targetting &ldquo;just any x86-64 machine&rdquo;.</p>
+<p>Additionally, JIT compilers have more information about the runtime behaviour of the program.
+For example, if the JIT compilers sees &ldquo;oh, this function is only called with an integer argument greater than 128&rdquo;, it can use that to optimize the function.
+An AOT compiler can deduce some information too, but in most cases that information is just very hard to find out without running the program.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup></p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h1 id="2-overview-of-the-clangllvm-pipeline">
+        2. Overview of the Clang/LLVM pipeline
+    </h1>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#2-overview-of-the-clangllvm-pipeline" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 2. Overview of the Clang/LLVM pipeline" href="#2-overview-of-the-clangllvm-pipeline">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  <div class="flex justify-center">
+    <figure class="gblog-post__figure">
+      <a class="gblog-markdown__link--raw" href="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/clang-llvm-pipeline.png">
+        <picture>
+          <source
+            
+              srcset="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/clang-llvm-pipeline_hu0e8c4ac227e93cbbb96ebb6f87c9a53c_77177_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/clang-llvm-pipeline_hu0e8c4ac227e93cbbb96ebb6f87c9a53c_77177_1200x0_resize_box_3.png 1200w" sizes="100vw"
+            
+          />
+          <img
+            loading="lazy"
+            src="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/clang-llvm-pipeline_hu0e8c4ac227e93cbbb96ebb6f87c9a53c_77177_1800x0_resize_box_3.png"
+            alt="Clang/LLVM pipeline"
+          />
+        </picture>
+      </a>
+      
+        <figcaption>
+          Clang/LLVM pipeline
+        </figcaption>
+      
+    </figure>
+  </div>
+
+
+<p>As you can see in the above picture, there&rsquo;s roughly 3 phases of compilation:</p>
+<ol>
+<li><strong>Frontend</strong>
+<ul>
+<li>In this step, all the source code is processed and an intermediate representation (IR) is generated.</li>
+<li>In our case, <code>Clang</code> is the frontend and <code>LLVM</code> is the middle- and backend.</li>
+<li>There are many LLVM frontends for many programming languages, Clang is just the one for C/C++.</li>
+</ul>
+</li>
+<li><strong>Middle-end</strong>
+<ul>
+<li>The middle-end is one of the great features of LLVM.
+In this phase, the IR is optimized.
+Overall, most of the optimizations are done here.
+The cool thing is that LLVM IR is completely universal; all frontends produce IR and all backends consume IR.
+That way, if you write an optimization pass for the middle end, it&rsquo;ll work for many languages and many target CPUs.</li>
+</ul>
+</li>
+<li><strong>Backend</strong>
+<ul>
+<li>The backend will now consume the optimized IR and produce machine code, which (after linking) can be executed on the target machine.
+The backend will also apply some machine specific optimization passes.</li>
+</ul>
+</li>
+</ol>
+<p>I&rsquo;ll now go a bit more into detail about how these 3 parts work.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h1 id="3-frontend">
+        3. Frontend
+    </h1>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#3-frontend" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 3. Frontend" href="#3-frontend">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="31-lexer">
+        3.1. Lexer
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#31-lexer" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 3.1. Lexer" href="#31-lexer">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>The first thing the frontend does is read the source code character by character and produce so-called <strong>tokens</strong>.</p>
+<p>For example, for the following C source code:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">**</span><span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;hello, world!</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div><p>The list of tokens could look like this:</p>
+<pre tabindex="0"><code>int,
+identifier(“main”),
+lparen,
+int,
+identifier(“argc”),
+comma,
+// and so on ...
+</code></pre><p>Additionally, each token will also have its source location (that is, its file, line and column) associated with it.</p>
+<p>In this phase, you basically get rid of all whitespace, comments, and transform the source code into something that can more easily be processed to produce the the abstract syntax tree (AST) and, following that, the IR.</p>
+<p>The lexer only does very simple recognition of the basic syntactical building blocks of the source code.
+For example, if you forget the terminating <code>&quot;</code> of a string, the lexer will complain; but not if you use a wrong type or an undefined symbol.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="32-parsersemantic-analyzer">
+        3.2. Parser/semantic analyzer
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#32-parsersemantic-analyzer" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 3.2. Parser/semantic analyzer" href="#32-parsersemantic-analyzer">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>Using the list of tokens from the previous step, we&rsquo;re now constructing a tree.
+And not just any tree, we&rsquo;re constructing a so-called <strong>abstract syntax tree</strong> (AST).</p>
+<p>Basically, we&rsquo;re now recognizing the language structures of the programming language, like definitions, declarations, control flow statements, expressions, type casts, etc.</p>
+
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  <div class="flex justify-center">
+    <figure class="gblog-post__figure">
+      <a class="gblog-markdown__link--raw" href="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/ast-dump.png">
+        <picture>
+          <source
+            
+              srcset="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/ast-dump_hudada9e4d69bef1f290b8b2db1f73f31c_128419_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/ast-dump_hudada9e4d69bef1f290b8b2db1f73f31c_128419_1200x0_resize_box_3.png 1200w" sizes="100vw"
+            
+          />
+          <img
+            loading="lazy"
+            src="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/ast-dump_hudada9e4d69bef1f290b8b2db1f73f31c_128419_1800x0_resize_box_3.png"
+            alt="Clang AST dump for the hello world C program"
+          />
+        </picture>
+      </a>
+      
+        <figcaption>
+          Clang AST dump for the hello world C program
+        </figcaption>
+      
+    </figure>
+  </div>
+
+
+<p>The above image shows the AST for the example C program in <a
+  class="gblog-markdown__link"
+  href="#31-lexer"
+  
+>3.1</a>.
+<code>&lt;invalid sloc&gt;</code> means <code>invalid source location</code>.
+The nodes with <code>&lt;invalid sloc&gt;</code> are &ldquo;imaginary&rdquo;, they don&rsquo;t have any corresponding source location and were added by Clang after the fact.</p>
+<p>In the AST, we can clearly recognize the structure of the hello world program above by looking at the nodes with valid source locations:</p>
+<ul>
+<li>The function declaration <code>int main(int, char **)</code> and the names of the two arguments, <code>argc</code> &amp; <code>argv</code> (<code>FunctionDecl</code> and <code>ParmVarDecl</code>)</li>
+<li>The compound statement <code>{ ... }</code> afterwards (<code>CompoundStmt</code>)</li>
+<li>The call to <code>printf</code> with some implicit casts (<code>CallExpr</code>)</li>
+<li>Finally, the <code>return 0</code> (<code>ReturnStmt</code>)</li>
+</ul>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h3 id="ambiguity">
+        Ambiguity
+    </h3>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#ambiguity" class="gblog-post__anchor clip flex align-center" aria-label="Anchor Ambiguity" href="#ambiguity">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>The parser has some predefined rules, like <code>function-declaration = type identifier ( parameter-list ) ...</code>.
+It tries to match those rules against the tokens and that way Clang will build the AST.
+However, in practice it&rsquo;s not that easy.
+For example, in C there are two ways you can parse <code>a * b</code>.</p>
+<ul>
+<li>Either <code>a</code> and <code>b</code> are variables and that expression is a multiplication,</li>
+<li>or <code>a</code> is a type name, and <code>a * b</code> is the declaration of a variable <code>b</code> with type <code>a*</code> (pointer to <code>a</code>)</li>
+</ul>
+<p>So to be able to parse this correctly, you need to know beforehand if <code>a</code> is a type or a variable.
+In C++ it&rsquo;s even more complicated.
+There&rsquo;s a saying that &ldquo;parsing C is hard and parsing C++ is impossible.&rdquo; The C++ grammar is <a
+  class="gblog-markdown__link"
+  href="https://en.wikipedia.org/wiki/Most_vexing_parse"
+  
+>ambiguous</a>, <a
+  class="gblog-markdown__link"
+  href="http://port70.net/~nsz/c/c%2B%2B/turing.pdf"
+  
+>C++ templates are turing complete</a> and parsing it is <a
+  class="gblog-markdown__link"
+  href="https://blog.reverberate.org/2013/08/parsing-c-is-literally-undecidable.html"
+  
+>literally undecidable</a>.
+That&rsquo;s one of the reasons why Clang has hand-written parsers for both C and C++.</p>
+<p>The parser works very closely together with the <strong>semantic analyzer</strong> (sema).
+The sema will do things like inferring types, adding type casts, doing validity checks or throwing warnings.
+For example, warnings about unused code or infinite self-recursion will be thrown by the sema.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="33-ir-generator">
+        3.3. IR generator
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#33-ir-generator" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 3.3. IR generator" href="#33-ir-generator">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>The IR generator will now (surprise!) generate rough, unoptimized <strong>IR</strong> using the AST from the previous step.</p>
+<p>LLVM IR is a full-fledged language with well-defined semantics.
+The IR below was generated for the hello world program from Section <a
+  class="gblog-markdown__link"
+  href="#31-lexer"
+  
+>3.1</a>.
+However, I&rsquo;d say its workings are a bit out of scope for this blog post, so I&rsquo;m not going to go into detail here.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-llvm" data-lang="llvm"><span class="vg">@.str</span> <span class="p">=</span> <span class="k">private</span> <span class="k">unnamed_addr</span> <span class="k">constant</span> <span class="p">[</span><span class="m">15</span> <span class="k">x</span> <span class="k">i8</span><span class="p">]</span> <span class="k">c</span><span class="s">&#34;hello, world!\0A\00&#34;</span><span class="p">,</span> <span class="k">align</span> <span class="m">1</span>
+
+<span class="k">define</span> <span class="err">dso_local</span> <span class="k">i32</span> <span class="vg">@main</span><span class="p">(</span><span class="k">i32</span> <span class="n">%0</span><span class="p">,</span> <span class="k">i8</span><span class="p">**</span> <span class="n">%1</span><span class="p">)</span> <span class="vg">#0</span> <span class="nv">!dbg</span> <span class="n">!8</span> <span class="p">{</span>
+  <span class="n">%3</span> <span class="p">=</span> <span class="k">alloca</span> <span class="k">i32</span><span class="p">,</span> <span class="k">align</span> <span class="m">4</span>
+  <span class="n">%4</span> <span class="p">=</span> <span class="k">alloca</span> <span class="k">i32</span><span class="p">,</span> <span class="k">align</span> <span class="m">4</span>
+  <span class="n">%5</span> <span class="p">=</span> <span class="k">alloca</span> <span class="k">i8</span><span class="p">**,</span> <span class="k">align</span> <span class="m">8</span>
+  <span class="k">store</span> <span class="k">i32</span> <span class="m">0</span><span class="p">,</span> <span class="k">i32</span><span class="p">*</span> <span class="n">%3</span><span class="p">,</span> <span class="k">align</span> <span class="m">4</span>
+  <span class="k">store</span> <span class="k">i32</span> <span class="n">%0</span><span class="p">,</span> <span class="k">i32</span><span class="p">*</span> <span class="n">%4</span><span class="p">,</span> <span class="k">align</span> <span class="m">4</span>
+  <span class="k">call</span> <span class="kt">void</span> <span class="vg">@llvm.dbg.declare</span><span class="p">(</span><span class="kt">metadata</span> <span class="k">i32</span><span class="p">*</span> <span class="n">%4</span><span class="p">,</span> <span class="kt">metadata</span> <span class="n">!17</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv">!DIExpression</span><span class="p">()),</span> <span class="nv">!dbg</span> <span class="n">!18</span>
+  <span class="k">store</span> <span class="k">i8</span><span class="p">**</span> <span class="n">%1</span><span class="p">,</span> <span class="k">i8</span><span class="p">***</span> <span class="n">%5</span><span class="p">,</span> <span class="k">align</span> <span class="m">8</span>
+  <span class="k">call</span> <span class="kt">void</span> <span class="vg">@llvm.dbg.declare</span><span class="p">(</span><span class="kt">metadata</span> <span class="k">i8</span><span class="p">***</span> <span class="n">%5</span><span class="p">,</span> <span class="kt">metadata</span> <span class="n">!19</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv">!DIExpression</span><span class="p">()),</span> <span class="nv">!dbg</span> <span class="n">!20</span>
+  <span class="n">%6</span> <span class="p">=</span> <span class="k">call</span> <span class="k">i32</span> <span class="p">(</span><span class="k">i8</span><span class="p">*,</span> <span class="p">...)</span> <span class="vg">@printf</span><span class="p">(</span><span class="k">i8</span><span class="p">*</span> <span class="k">getelementptr</span> <span class="k">inbounds</span> <span class="p">([</span><span class="m">15</span> <span class="k">x</span> <span class="k">i8</span><span class="p">],</span> <span class="p">[</span><span class="m">15</span> <span class="k">x</span> <span class="k">i8</span><span class="p">]*</span> <span class="vg">@.str</span><span class="p">,</span> <span class="k">i64</span> <span class="m">0</span><span class="p">,</span> <span class="k">i64</span> <span class="m">0</span><span class="p">)),</span> <span class="nv">!dbg</span> <span class="n">!21</span>
+  <span class="k">ret</span> <span class="k">i32</span> <span class="m">0</span><span class="p">,</span> <span class="nv">!dbg</span> <span class="n">!22</span>
+<span class="p">}</span>
+
+<span class="k">declare</span> <span class="kt">void</span> <span class="vg">@llvm.dbg.declare</span><span class="p">(</span><span class="kt">metadata</span><span class="p">,</span> <span class="kt">metadata</span><span class="p">,</span> <span class="kt">metadata</span><span class="p">)</span> <span class="vg">#1</span>
+
+<span class="k">declare</span> <span class="err">dso_local</span> <span class="k">i32</span> <span class="vg">@printf</span><span class="p">(</span><span class="k">i8</span><span class="p">*,</span> <span class="p">...)</span> <span class="vg">#2</span>
+
+<span class="k">attributes</span> <span class="vg">#0</span> <span class="p">=</span> <span class="p">{</span> <span class="k">noinline</span> <span class="k">nounwind</span> <span class="k">optnone</span> <span class="k">uwtable</span> <span class="s">&#34;frame-pointer&#34;</span><span class="p">=</span><span class="s">&#34;all&#34;</span> <span class="s">&#34;min-legal-vector-width&#34;</span><span class="p">=</span><span class="s">&#34;0&#34;</span> <span class="s">&#34;no-trapping-math&#34;</span><span class="p">=</span><span class="s">&#34;true&#34;</span> <span class="s">&#34;stack-protector-buffer-size&#34;</span><span class="p">=</span><span class="s">&#34;8&#34;</span> <span class="s">&#34;target-cpu&#34;</span><span class="p">=</span><span class="s">&#34;x86-64&#34;</span> <span class="s">&#34;target-features&#34;</span><span class="p">=</span><span class="s">&#34;+cx8,+fxsr,+mmx,+sse,+sse2,+x87&#34;</span> <span class="s">&#34;tune-cpu&#34;</span><span class="p">=</span><span class="s">&#34;generic&#34;</span> <span class="p">}</span>
+<span class="k">attributes</span> <span class="vg">#1</span> <span class="p">=</span> <span class="p">{</span> <span class="err">no</span><span class="k">free</span> <span class="err">nosyn</span><span class="k">c</span> <span class="k">nounwind</span> <span class="k">readnone</span> <span class="err">speculatable</span> <span class="err">willreturn</span> <span class="p">}</span>
+<span class="k">attributes</span> <span class="vg">#2</span> <span class="p">=</span> <span class="p">{</span> <span class="s">&#34;frame-pointer&#34;</span><span class="p">=</span><span class="s">&#34;all&#34;</span> <span class="s">&#34;no-trapping-math&#34;</span><span class="p">=</span><span class="s">&#34;true&#34;</span> <span class="s">&#34;stack-protector-buffer-size&#34;</span><span class="p">=</span><span class="s">&#34;8&#34;</span> <span class="s">&#34;target-cpu&#34;</span><span class="p">=</span><span class="s">&#34;x86-64&#34;</span> <span class="s">&#34;target-features&#34;</span><span class="p">=</span><span class="s">&#34;+cx8,+fxsr,+mmx,+sse,+sse2,+x87&#34;</span> <span class="s">&#34;tune-cpu&#34;</span><span class="p">=</span><span class="s">&#34;generic&#34;</span> <span class="p">}</span>
+</code></pre></div><div class="gblog-post__anchorwrap flex align-center">
+    <h1 id="4-middle-end">
+        4. Middle-end
+    </h1>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#4-middle-end" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 4. Middle-end" href="#4-middle-end">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>Now that we have the IR, we can <strong>optimize</strong> it.
+What does &ldquo;optimizing&rdquo; even mean, though?
+When we optimize a program, we want to make it <strong>faster</strong> or <strong>smaller</strong>.</p>
+<p>Making it run faster is the usual goal that&rsquo;s achievable for example by combining operations, reducing function calls, resolving recursions, etc.
+Making the finished program binaries smaller is often done in embedded environments, where you don&rsquo;t have too much space available.</p>
+<p>A single &ldquo;step&rdquo; of optimization is called an <strong>optimization pass</strong>.
+Usually when employing optimizations, you&rsquo;ll bundle a bunch of these together in a chain.
+The order is important too: Some optimization passes rely on the fact that some other optimization pass has run before them (that maybe annotated the IR with some analysis information), others produce better results when some other optimization pass has run before them.
+But that&rsquo;s mostly opaque to the user, Clang will do the right thing for you when you just use the <code>-O...</code> commandline argument.</p>
+<p>There are three kinds of optimization passes:</p>
+<ol>
+<li><strong>Analysis passes</strong>
+<ul>
+<li>Those analyze the IR and try to deduce some information that&rsquo;s useful (or required) for other optimization passes.</li>
+<li>For example, one analysis pass will deduce information about the call graph, another will find memory dependencies, etc.</li>
+</ul>
+</li>
+<li><strong>Transform passes</strong>
+<ul>
+<li>Transform passes are what actually optimizes the IR.
+They use the information from the analysis passes to transform the IR in such a way that it&rsquo;s either faster or smaller afterwards.</li>
+<li>There <code>-inline</code> transform pass will do function inlining (more on that later), <code>-adce</code> will eliminate dead code, <code>-instcombine</code> combines redundant instructions, etc.</li>
+</ul>
+</li>
+<li><strong>Utility passes</strong>
+<ul>
+<li>These are mostly used for debugging purposes.
+These aren&rsquo;t applied by Clang by default, only if you explicitly tell it to.</li>
+<li>For example, the <code>-view-cfg</code> pass will use Graphviz to visualize the control flow graph.</li>
+</ul>
+</li>
+</ol>
+
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  <div class="flex justify-center">
+    <figure class="gblog-post__figure">
+      <a class="gblog-markdown__link--raw" href="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/optimization-passes.png">
+        <picture>
+          <source
+            
+              srcset="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/optimization-passes_hua6c2e01a3ad55be301e16155216e0d4e_37763_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/optimization-passes_hua6c2e01a3ad55be301e16155216e0d4e_37763_1200x0_resize_box_3.png 1200w" sizes="100vw"
+            
+          />
+          <img
+            loading="lazy"
+            src="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/optimization-passes_hua6c2e01a3ad55be301e16155216e0d4e_37763_1800x0_resize_box_3.png"
+            alt="Pie chart of the optimization passes of LLVM"
+          />
+        </picture>
+      </a>
+      
+        <figcaption>
+          Pie chart of the optimization passes of LLVM (Based on <a
+  class="gblog-markdown__link"
+  href="https://llvm.org/docs/Passes.html"
+  
+>https://llvm.org/docs/Passes.html</a> (fetched on 2021-11-05))
+        </figcaption>
+      
+    </figure>
+  </div>
+
+
+<p>To use these optimizations, you can just use the <code>-O...</code> commandline argument for Clang.</p>
+<p>For example:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-shell" data-lang="shell"><span class="c1"># no optimizations at all (default)</span>
+$ clang -O0 main.c
+<span class="c1"># optimize for speed</span>
+$ clang -O1 main.c
+<span class="c1"># optimize even more for speed</span>
+$ clang -O2 main.c
+<span class="c1"># optimize even more more for speed</span>
+$ clang -O3 main.c
+<span class="c1"># optimize for fastest speed possible</span>
+$ clang -Ofast main.c
+<span class="c1"># optimize for size (basically -O2 with some optimizations that reduce size)</span>
+$ clang -Os main.c
+<span class="c1"># optimize even more for size</span>
+$ clang -Oz main.c
+</code></pre></div><p>As a developer, usually you want your programs to run fast.
+So why don&rsquo;t we always use <code>-Ofast</code>?</p>
+<ul>
+<li>The first reason is that it breaks strict standards compliance.
+<code>-Ofast</code> is basically <code>-O3</code> with <a
+  class="gblog-markdown__link--code"
+  href="https://clang.llvm.org/docs/UsersManual.html#cmdoption-ffast-math"
+  
+><code>-ffast-math</code></a>.
+Fast-math will do a lot of things that are not compatible with the C or C++ standards.
+For example, it&rsquo;ll replace some operation that divides by a floating-point constant <code>a / 0.123</code> by a multiplication with the reciprocal (<code>a * (1 / 0.123)</code>) since multiplication is usually faster, some floating point errors won&rsquo;t be reported anymore, some things are less accurate, etc.</li>
+<li>For large projects, it&rsquo;ll increase compile time.
+In many cases, it might still be worth it, but others may not want to do that.</li>
+<li>It might increase program binary size.</li>
+</ul>
+<p>Okay, so the problem with <code>-Ofast</code> is mainly non-compliant math.
+So why don&rsquo;t we just always use <code>-O3</code>?
+Why is there a <code>-O2</code> then?
+It turns out that&rsquo;s a pretty good question.
+<code>-O3</code> is basically the same as <code>-O2</code>.
+In the LLVM I tested, <code>-O3</code> enables two more optimization passes than <code>-O2</code> and for one of them it says in the code &ldquo;<a
+  class="gblog-markdown__link"
+  href="https://github.com/llvm/llvm-project/blob/2b46417aa2d42d5d2a14df1675cfee547fd46556/llvm/lib/Passes/PassBuilderPipelines.cpp#L755"
+  
+>FIXME: It isn&rsquo;t at all clear why this should be limited to -O3</a>&rdquo;.</p>
+<p>Okay, now that we have optimized the IR, we can go on to the next step:</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h1 id="5-backend">
+        5. Backend
+    </h1>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#5-backend" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 5. Backend" href="#5-backend">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="51-instruction-selection">
+        5.1. Instruction Selection
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#51-instruction-selection" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 5.1. Instruction Selection" href="#51-instruction-selection">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>This is the first phase of the backend.
+Everything (well, most) target-specific stuff happens here.
+Now, we want to transform the optimized IR into something that&rsquo;ll run on the target CPU, and as the first step we&rsquo;re going to select the instructions for that.</p>
+<p>LLVM has multiple instruction selectors:</p>
+<ul>
+<li><strong>SelectionDAG</strong> (produces the best results, best documented)</li>
+<li><strong>FastIsel</strong> (produces poor results, but runs quickly)</li>
+<li><strong>GlobalIsel</strong> (WIP, designed to combine the compilation speed of FastIsel with the quality of SelectionDAG)</li>
+</ul>
+<p>Since SelectionDAG is best documented and produces the best results, I&rsquo;m going to use that as an example.
+Actually, SelectionDAG is not only the name of this instruction selector but also the output of it.
+That is, the output of this instruction selector is called <strong>SelectionDAG</strong> (selection directed, acyclic graph) too.
+In this graph, each node is an instruction and the edges are data or control dependencies.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup></p>
+<p>A finished DAG (for the program from <a
+  class="gblog-markdown__link"
+  href="#31-lexer"
+  
+>3.1</a>) looks like this:</p>
+
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  <div class="flex justify-center">
+    <figure class="gblog-post__figure">
+      <a class="gblog-markdown__link--raw" href="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/selectiondag-final.png">
+        <picture>
+          <source
+            
+              srcset="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/selectiondag-final_hu6310ef32cd856d3dfd653fb57f03ae37_44586_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/selectiondag-final_hu6310ef32cd856d3dfd653fb57f03ae37_44586_1200x0_resize_box_3.png 1200w" sizes="100vw"
+            
+          />
+          <img
+            loading="lazy"
+            src="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/selectiondag-final_hu6310ef32cd856d3dfd653fb57f03ae37_44586_1800x0_resize_box_3.png"
+            alt="Final SelectionDAG"
+          />
+        </picture>
+      </a>
+      
+        <figcaption>
+          Final SelectionDAG
+        </figcaption>
+      
+    </figure>
+  </div>
+
+
+<p>But how is that graph built?
+There are multiple steps involved here:</p>
+<ol>
+<li>
+<p>First of all, we&rsquo;re using static mappings from IR instruction to SelectionDAG node, and the control and dataflow dependencies we can infer from the IR to build an initial, naive SelectionDAG.<sup id="fnref:5"><a href="#fn:5" class="footnote-ref" role="doc-noteref">5</a></sup></p>
+</li>
+<li>
+<p>Now we&rsquo;re applying some basic optimizations to it.</p>
+</li>
+<li>
+<p>The (still naive) SelectionDAG we now have might not even be runnable on the target CPU.
+Maybe it contains operations that aren&rsquo;t supported or some type doesn&rsquo;t work with the operation used, etc.
+In other words, it might be an <strong>illegal</strong> SelectionDAG.
+So now, as the first step of making it a legal graph, we&rsquo;re going the <strong>legalize</strong> the types.
+There are two kinds of modifications we can make to the types here:</p>
+<ul>
+<li><strong>Type promotion</strong> (converting a small type to a larger one)</li>
+<li><strong>Type expansion</strong> (splitting up a larger type into multiple smaller ones)</li>
+</ul>
+<p>For example: If the target doesn&rsquo;t support 16-bit integers, we&rsquo;re just going to <em>promote</em> it to a 32-bit integer instead.
+Likewise, if it doesn&rsquo;t support 64-bit integers, we&rsquo;re just going to <em>expand</em> it to two 32-bit ints instead.</p>
+</li>
+<li>
+<p>Now, we optimize that again, mostly to get rid of redundant operations introduced by type promotion/expansion.</p>
+</li>
+<li>
+<p>After that, we&rsquo;re going to legalize the operations.
+Targets sometimes have weird, arbitrary constraints for the types that can be used for some operations.
+(x86 does not support byte-conditional moves, PowerPC does not support sign-extending loads from a 16-bit memory location.) So we&rsquo;ll apply type promotion and type expansion or some custom, target-specific modifications here to make the SelectionDAG legal.</p>
+</li>
+<li>
+<p>Optimize again.</p>
+</li>
+<li>
+<p>Actually select the instructions.
+This phase is a bit more complicated, but in a nutshell, LLVM will take the instructions in the SelectionDAG we have (which are target-independent instructions that just happen to be executable on the target machine) and translate them into target-specific instructions, while also using pattern-matching to combine instructions where possible.</p>
+</li>
+</ol>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="52-scheduling-and-formation">
+        5.2. Scheduling and Formation
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#52-scheduling-and-formation" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 5.2. Scheduling and Formation" href="#52-scheduling-and-formation">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>Now we have a SelectionDAG of machine instructions.
+However, CPUs don&rsquo;t run DAGs.
+So we need to linearize the SelectionDAG, that is, form it into a list.
+There are many ways to do that, LLVM will just use some heuristics so we, for instance, always have enough registers available, you can also take into account instruction latencies, etc.
+You can print the linearized SelectionDAG for some LLVM IR using <code>llc -print-machineinstrs ...</code>.</p>
+<p>After this, there&rsquo;s a machine code (actually MIR) based optimization phase.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="53-register-allocation">
+        5.3. Register Allocation
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#53-register-allocation" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 5.3. Register Allocation" href="#53-register-allocation">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>Up until this point, even if you might not have realized, we acted like the target machine has an infinite amount of one-time assignable registers.</p>
+<p>In other words, the IR and SelectionDAG was in the so-called <strong>SSA</strong> (single static assignment) form.
+The SSA form simplifies many analyses of the control flow graph of the IR.
+At this point, we want to select the actual target registers we will use for the previously virtual SSA registers.
+Most targets only have 16, maybe 32 registers and many of those are reserved for special purposes.
+It&rsquo;s possible we don&rsquo;t have enough physical registers to accomodate all the virtual registers.
+That means we have to put some of them into main memory instead, which is called <strong>spilling</strong>.</p>
+<p>Now that we&rsquo;ve selected the physical registers, we&rsquo;re adding some prologue and epilogue instructions to the function, that is, push some registers on the stack and pop them again later.</p>
+<p>After that comes a machine code based optimization phase.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="54-code-emission">
+        5.4. Code Emission
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#54-code-emission" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 5.4. Code Emission" href="#54-code-emission">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>Now we can finally emit the optimized machine code, in whatever format the user desires.
+Some targets support writing <code>.o</code> files directly, for others assembly will be written and assembled into an <code>.o</code> file as an intermediate step.
+Note that to be able to run this file, we also need to link it, which Clang can do for you as well.
+(Not Clang itself, Clang will just call a linker.)</p>
+
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  <div class="flex justify-center">
+    <figure class="gblog-post__figure">
+      <a class="gblog-markdown__link--raw" href="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/codegen-feature-matrix.png">
+        <picture>
+          <source
+            
+              srcset="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/codegen-feature-matrix_hu5ef6a93dc4609498d73a98f1ccec3ec0_49653_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/codegen-feature-matrix_hu5ef6a93dc4609498d73a98f1ccec3ec0_49653_1200x0_resize_box_3.png 1200w" sizes="100vw"
+            
+          />
+          <img
+            loading="lazy"
+            src="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/codegen-feature-matrix_hu5ef6a93dc4609498d73a98f1ccec3ec0_49653_1800x0_resize_box_3.png"
+            alt="Feature matrix of the different target code generators"
+          />
+        </picture>
+      </a>
+      
+        <figcaption>
+          Feature matrix of the different target code generators (From <a
+  class="gblog-markdown__link"
+  href="https://llvm.org/docs/CodeGenerator.html#target-feature-matrix"
+  
+>https://llvm.org/docs/CodeGenerator.html#target-feature-matrix</a>)
+        </figcaption>
+      
+    </figure>
+  </div>
+
+
+<div class="gblog-post__anchorwrap flex align-center">
+    <h1 id="6-optimizations">
+        6. Optimizations
+    </h1>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#6-optimizations" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 6. Optimizations" href="#6-optimizations">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="loop-unrolling">
+        Loop unrolling
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#loop-unrolling" class="gblog-post__anchor clip flex align-center" aria-label="Anchor Loop unrolling" href="#loop-unrolling">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>As an example function, take this piece of code which will just copy over 16 integers from <code>s</code> to <code>d</code>.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="kt">void</span> <span class="nf">copy_16</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="n">d</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">16</span><span class="p">;</span> <span class="n">i</span><span class="o">=</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">d</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div><p>When we execute this, we basically do:</p>
+<pre tabindex="0"><code>i := 0,
+check:
+is i &lt; 16? if no goto end
+d[i] = s[i]
+i++
+goto check
+end:
+return
+</code></pre><p>So we&rsquo;ll check 16 times if <code>i &lt; 16</code>  and we&rsquo;ll increment <code>i</code> 16 times, which is quite a bit of overhead, given that we know we want <em>exactly</em> 16 iterations.</p>
+<p>Clang/LLVM will use loop unrolling to transform it into this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="kt">void</span> <span class="nf">copy_16</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="n">d</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+  <span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+  <span class="n">d</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
+  <span class="c1">// ...
+</span><span class="c1"></span><span class="p">}</span>
+</code></pre></div><p>So basically we just repeat the loop body 16 times and save the overhead.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="vectorizing">
+        Vectorizing
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#vectorizing" class="gblog-post__anchor clip flex align-center" aria-label="Anchor Vectorizing" href="#vectorizing">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>Even if we don&rsquo;t have a fixed upper bound for the loop, LLVM can still do something about it.
+In this example we do the same thing but iterate up to <code>n</code>, which is a parameter, so not known at compile time.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="kt">void</span> <span class="nf">copy_n</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="n">d</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">s</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">=</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">d</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div><p>Many CPUs have instructions that allow to copy over a lot more bytes at once, which is faster than only copying 4 bytes at once.
+So the compiler will try to use those instructions for the bulk of the copying and do the rest one-by-one again.
+That&rsquo;s called vectorization.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="kt">void</span> <span class="nf">copy_n</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="n">d</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">s</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="o">-</span><span class="mi">127</span><span class="p">;</span> <span class="n">i</span><span class="o">=</span><span class="n">i</span><span class="o">+</span><span class="mi">128</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// copy 128 bytes at once
+</span><span class="c1"></span>  <span class="p">}</span>
+  <span class="k">for</span> <span class="p">(;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">=</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">d</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div><div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="function-inlining-and-loop-unrolling">
+        Function inlining and loop unrolling
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#function-inlining-and-loop-unrolling" class="gblog-post__anchor clip flex align-center" aria-label="Anchor Function inlining and loop unrolling" href="#function-inlining-and-loop-unrolling">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>In this example, we have a mixture of the above.
+There&rsquo;s <code>copy_n</code>, which still takes the upper loop limit as a parameter, and it is used in <code>copy_16_v2</code>, which unconditionally calls copy_n with <code>n=16</code>.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="kt">void</span> <span class="nf">copy_n</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="n">d</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">s</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">=</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">d</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">copy_16_v2</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="n">d</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">copy_n</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="mi">16</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div><p>The compiler will now basically copy and paste the implementation of <code>copy_n</code> into the other function, which is called function inlining.
+Then it can deduce that the for loop limit is 16, so it&rsquo;ll make use of loop unrolling again.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="kt">void</span> <span class="nf">copy_16_v2</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="n">d</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+  <span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+  <span class="n">d</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
+  <span class="c1">// ...
+</span><span class="c1"></span><span class="p">}</span>
+</code></pre></div><div class="gblog-post__anchorwrap flex align-center">
+    <h1 id="7-sources">
+        7. Sources
+    </h1>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#7-sources" class="gblog-post__anchor clip flex align-center" aria-label="Anchor 7. Sources" href="#7-sources">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<ul>
+<li>[Ray Toal, Intro to Compilers] Toal, R. Intro to Compilers. <a
+  class="gblog-markdown__link"
+  href="https://www.cs.cornell.edu/~asampson/blog/llvm.html"
+  
+>https://www.cs.cornell.edu/~asampson/blog/llvm.html</a></li>
+<li>[Finkel, 2017] Finkel, H. and Horváth, G. (2017). Code Transformation and analysis using Clang and LLVM. <a
+  class="gblog-markdown__link"
+  href="https://llvm.org/devmtg/2017-06/2-Hal-Finkel-LLVM-2017.pdf"
+  
+>https://llvm.org/devmtg/2017-06/2-Hal-Finkel-LLVM-2017.pdf</a></li>
+<li><a
+  class="gblog-markdown__link"
+  href="https://stackoverflow.com/questions/6319086/are-gcc-and-clang-parsers-really-handwritten"
+  
+>https://stackoverflow.com/questions/6319086/are-gcc-and-clang-parsers-really-handwritten</a></li>
+<li><a
+  class="gblog-markdown__link"
+  href="https://stackoverflow.com/questions/11510792/is-the-semantic-analysis-step-in-clang-an-essential-part-of-the-compiler"
+  
+>https://stackoverflow.com/questions/11510792/is-the-semantic-analysis-step-in-clang-an-essential-part-of-the-compiler</a></li>
+<li><a
+  class="gblog-markdown__link"
+  href="https://cppdepend.com/blog/?p=321"
+  
+>https://cppdepend.com/blog/?p=321</a></li>
+<li><a
+  class="gblog-markdown__link"
+  href="https://llvm.org/docs/CodeGenerator.html#legalize-operations"
+  
+>https://llvm.org/docs/CodeGenerator.html#legalize-operations</a></li>
+<li><a
+  class="gblog-markdown__link"
+  href="https://eli.thegreenplace.net/2013/02/25/a-deeper-look-into-the-llvm-code-generator-part-1"
+  
+>https://eli.thegreenplace.net/2013/02/25/a-deeper-look-into-the-llvm-code-generator-part-1</a></li>
+<li><a
+  class="gblog-markdown__link"
+  href="https://stackoverflow.com/questions/845355/do-programming-language-compilers-first-translate-to-assembly-or-directly-to-mac"
+  
+>https://stackoverflow.com/questions/845355/do-programming-language-compilers-first-translate-to-assembly-or-directly-to-mac</a></li>
+<li><a
+  class="gblog-markdown__link"
+  href="https://eli.thegreenplace.net/2012/11/24/life-of-an-instruction-in-llvm/"
+  
+>https://eli.thegreenplace.net/2012/11/24/life-of-an-instruction-in-llvm/</a></li>
+<li><a
+  class="gblog-markdown__link"
+  href="https://llvm.org/docs/CodeGenerator.html#target-feature-matrix"
+  
+>https://llvm.org/docs/CodeGenerator.html#target-feature-matrix</a></li>
+<li><a
+  class="gblog-markdown__link"
+  href="https://blog.regehr.org/archives/1603"
+  
+>https://blog.regehr.org/archives/1603</a></li>
+<li><a
+  class="gblog-markdown__link"
+  href="https://github.com/llvm/llvm-project/blob/7175886a0f612aded1430ae240ca7ffd53d260dd/llvm/lib/Passes/PassBuilderPipelines.cpp#L717"
+  
+>https://github.com/llvm/llvm-project/blob/7175886a0f612aded1430ae240ca7ffd53d260dd/llvm/lib/Passes/PassBuilderPipelines.cpp#L717</a></li>
+<li><a
+  class="gblog-markdown__link"
+  href="https://clang.llvm.org/docs/CommandGuide/clang.html"
+  
+>https://clang.llvm.org/docs/CommandGuide/clang.html</a></li>
+</ul>
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>Some compilers translate into machine code directly (LLVM, mostly), other translate into assembly and use an assembler to compile it into machine code (GCC).&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:2" role="doc-endnote">
+<p>Not necessarily, there&rsquo;s something called <a
+  class="gblog-markdown__link"
+  href="https://hannes.hauswedell.net/post/2017/12/09/fmv/"
+  
+>Function Multiversioning</a>, but that&rsquo;s not automatic.&#160;<a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:3" role="doc-endnote">
+<p><a
+  class="gblog-markdown__link"
+  href="https://en.wikipedia.org/wiki/Profile-guided_optimization"
+  
+>Profile guided optimization</a> might help in that case, though.&#160;<a href="#fnref:3" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:4" role="doc-endnote">
+<p>There&rsquo;s one other type of edge called <code>glue</code>, that&rsquo;ll make the instructions stick together through scheduling (see <a
+  class="gblog-markdown__link"
+  href="https://stackoverflow.com/questions/33005061/what-are-glue-and-chain-dependencies-in-an-llvm-dag"
+  
+>https://stackoverflow.com/questions/33005061/what-are-glue-and-chain-dependencies-in-an-llvm-dag</a>).&#160;<a href="#fnref:4" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:5" role="doc-endnote">
+<p>This mapping is not entirely static. Target-specific interfaces are used to map things like returns, calls, varargs, etc. (see <a
+  class="gblog-markdown__link"
+  href="https://llvm.org/docs/CodeGenerator.html#initial-selectiondag-construction"
+  
+>https://llvm.org/docs/CodeGenerator.html#initial-selectiondag-construction</a>).&#160;<a href="#fnref:5" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+    </section>
+  </article>
+
+      </main>
+
+      <footer class="gblog-footer">
+  <nav class="container flex">
+    <div>
+      <section class="flex flex-wrap align-center">
+        
+          <span class="gblog-footer__item gblog-footer__item--row">
+            <svg class="gblog-icon gblog_rss_feed"><use xlink:href="#gblog_rss_feed"></use></svg>
+            <a href="/feed.xml" class="gblog-footer__link">Atom Feed</a>
+          </span>
+        
+        
+          
+
+  
+  
+  
+
+  
+    
+      
+      
+      
+
+      
+        <span class="gblog-footer__item gblog-footer__item--row">
+          
+            <svg class="gblog-icon gblog_email"><use xlink:href="#gblog_email"></use></svg>
+          
+          <a
+            href="https://parcio.ovgu.de/Imprint.html"
+            class="gblog-footer__link"
+          >
+            Imprint
+          </a>
+        </span>
+      
+    
+  
+    
+      
+      
+      
+
+      
+        <span class="gblog-footer__item gblog-footer__item--row">
+          
+            <svg class="gblog-icon gblog_email"><use xlink:href="#gblog_email"></use></svg>
+          
+          <a
+            href="https://parcio.ovgu.de/Contact.html"
+            class="gblog-footer__link"
+          >
+            Contact
+          </a>
+        </span>
+      
+    
+  
+
+
+
+
+
+
+        
+        
+        
+      </section>
+      <section class="flex flex-wrap align-center">
+        <span class="gblog-footer__item">
+          Built with <a href="https://gohugo.io/" class="gblog-footer__link">Hugo</a> and
+          <svg class="gblog-icon gblog_heart"><use xlink:href="#gblog_heart"></use></svg>
+        </span>
+      </section>
+      
+        <section class="flex flex-wrap align-center">
+          <span class="gblog-footer__item">
+            Hosted on <a href="https://pages.github.com/" class="gblog-footer__link">GitHub Pages</a>
+          </span>
+        </section>
+      
+      
+        <section class="flex flex-wrap align-center">
+          <span class="gblog-footer__item">
+            Content licensed under
+            <a href="https://creativecommons.org/licenses/by-sa/4.0/" class="gblog-footer__link no-wrap">CC BY-SA 4.0</a>
+          </span>
+        </section>
+      
+    </div>
+    
+      <div class="flex flex-25 justify-end">
+        <span class="gblog-footer__item text-right">
+          <a class="gblog-footer__link fake-link" href="#" aria-label="Back to top">
+            <svg class="gblog-icon gblog_keyboard_arrow_up">
+              <use xlink:href="#gblog_keyboard_arrow_up"></use>
+            </svg>
+            <span class="hidden-mobile">Back to top</span>
+          </a>
+        </span>
+      </div>
+    
+  </nav>
+</footer>
+
+    </div>
+  </body>
+</html>

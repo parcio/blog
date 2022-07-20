@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <generator uri="https://gohugo.io/" version="0.92.2">Hugo</generator>
+    <title>Network Communication on Parallel Computing and I/O Blog</title>
+        <subtitle>We conduct research and development on parallel systems</subtitle>
+            <link href="https://blog.parcio.de/tags/Network-Communication/" rel="alternate" type="text/html" title="HTML" />
+            <link href="https://blog.parcio.de/tags/Network-Communication/feed.xml" rel="self" type="application/atom+xml" title="Atom" />
+    <updated>2022-07-20T18:39:34+00:00</updated>
+    <id>https://blog.parcio.de/tags/Network-Communication/</id>
+        <entry>
+            <title>Libfabric: A generalized way for fabric communication</title>
+            <link href="https://blog.parcio.de/posts/2022/04/libfabric/" rel="alternate" type="text/html"  hreflang="en" />
+            <id>https://blog.parcio.de/posts/2022/04/libfabric/</id>
+                    <author>
+                        <name>Julian Benda</name>
+                    </author>
+            <published>2022-04-25T00:00:00+00:00</published>
+            <updated>2022-04-25T00:00:00+00:00</updated>
+            <content type="html">
+                &lt;p&gt;In this post, we will look at the challenges of efficient communication between processes and how Libfabric abstracts them.
+We will see how OFI (Open Fabrics Interfaces) enables a fast and generalized communication.&lt;/p&gt;
+&lt;style&gt;
+@media(prefers-color-scheme: dark) {
+	html.color-toggle-auto .light-only {
+		display: none;
+	}
+}
+@media(prefers-color-scheme: light) {
+	html.color-toggle-auto .dark-only {
+		display: none;
+	}
+}
+html.color-toggle-dark .light-only {
+	display: none;
+}
+html.color-toggle-light .dark-only {
+	display: none;
+}
+&lt;/style&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;what-is-a-fabric-and-how-to-communicate-in-it&#34;&gt;
+        What is a fabric and how to communicate in it?
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/04/libfabric/#what-is-a-fabric-and-how-to-communicate-in-it&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor What is a fabric and how to communicate in it?&#34; href=&#34;#what-is-a-fabric-and-how-to-communicate-in-it&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;A fabric is nothing more or less than several, more or less uniform, nodes connected via links or, in other words, the typical HPC or cloud computing landscape.&lt;/p&gt;
+&lt;p&gt;Nodes can be linked via different physical media (e.g., copper or optical fiber) and various communication protocols. 
+While the physical medium is hidden behind the network cards, the communication protocol is something we still need to manage in user-space because different protocols require other interactions with the network to function.&lt;/p&gt;
+&lt;p&gt;To have a unified interface for the typical messaging data transfer would be nice, while not necessarily being a game changer.
+But in perspective to RDMA, it differs.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;rdma&#34;&gt;
+        RDMA
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/04/libfabric/#rdma&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor RDMA&#34; href=&#34;#rdma&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Remote direct memory access (RDMA) sounds counter intuitive at first, because how would you access remote memory directly?
+Directly in this context means without involving the operating system and CPU.
+Instead, the data transfer is entirely managed by the NIC.
+Therefore, we only need to signal we want to read data X from source Y to the memory segment Z, and the NIC does the rest.&lt;/p&gt;
+&lt;p&gt;In contrast, for normal kernel mode networking, we will copy the buffer multiple times and run it through various layers of code (e.g., socket, TCP protocol implementation, and driver).
+This will cause a load on the CPU and bus, while RDMA, thanks to kernel bypass to the NIC, can offload a huge part from the network stack.&lt;/p&gt;
+&lt;p&gt;This opens many questions, to name a few:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;When is the memory transfer finished?&lt;/li&gt;
+&lt;li&gt;How to avoid inconsistency due to invalidated caches?&lt;/li&gt;
+&lt;li&gt;Is RDMA even possible with this NIC?&lt;/li&gt;
+&lt;li&gt;How to queue RDMA requests?&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The answers to these questions depend strongly on the implementation and the network protocol.
+Therefore, a unified solution is quite welcome if you want the flexibility to change your link type.&lt;/p&gt;
+&lt;p&gt;A short reminder: RDMA still uses the same network as typical network messages, therefore the bandwidth and latency will not change much, but it will reduce the work done by the CPU, which leads to fewer interrupts and more processing time for your calculation running.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;libfabric-abstraction&#34;&gt;
+        Libfabric abstraction
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/04/libfabric/#libfabric-abstraction&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Libfabric abstraction&#34; href=&#34;#libfabric-abstraction&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Libfabric offers a unified interface to use different communication types over different communication protocols, and each time tries to minimize the overhead.&lt;/p&gt;
+&lt;p&gt;The supported communication types are:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Message Queue: Message-based FIFO queue&lt;/li&gt;
+&lt;li&gt;Tagged Message Queue: Similar to Message Queue but enables operations based on a 64-bit tag attached to each message&lt;/li&gt;
+&lt;li&gt;RMA (remote memory access): Abstraction of RDMA to enable it also on systems that are not RDMA-capable&lt;/li&gt;
+&lt;li&gt;Atomic: Allow atomic operations at the network level&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://github.com/julea-io/julea&#34;
+  
+&gt;JULEA&lt;/a&gt; is a flexible storage framework for clusters that allows offering arbitrary I/O interfaces to applications.
+It runs completely in user space, which eases development and debugging.
+Because it runs on a cluster, a lot of network communication must be handled.
+Until now, it used TCP (via &lt;code&gt;GSocket&lt;/code&gt;).
+While TCP connections normally work everywhere, the cluster may provide better fabrics, which we were unable to use.
+Now, with Libfabric, we can use a huge variety of other fabrics like InfiniBand.&lt;/p&gt;
+&lt;p&gt;For JULEA, Message Queue and RMA are the most interesting.
+Message Queue fits the communication structure currently used in JULEA.
+RMA enables processing many data transfers in parallel.
+With RMA, we can, for example, process a message with multiple read access and tell the link that the data have no specific order.&lt;/p&gt;
+&lt;p&gt;To achieve this, Libfabric uses different abstracted modules, where each of them is equipped with an optional argument to even use it only for one protocol or just let Libfabric decide what is best.&lt;/p&gt;
+&lt;p&gt;Each module enables us to create the next in the chain until we archive the connection we want.
+The modules of interest are:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Fabric information: List of available networks, which can be filtered and is sorted by performance&lt;/li&gt;
+&lt;li&gt;Fabric: All resources needed to use a network&lt;/li&gt;
+&lt;li&gt;Domain: Represents a connection in a fabric (e.g., a port or a NIC)&lt;/li&gt;
+&lt;li&gt;Endpoint: Communication portal to a domain&lt;/li&gt;
+&lt;li&gt;Event queue: Reports asynchronous meta events for an endpoint, like connection established/shutdown&lt;/li&gt;
+&lt;li&gt;Completion queue/counter: High-performance queue reports completed data transfers or just a counter&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;If we want, for example, to build a connection to a server (with a known address), we can use &lt;code&gt;fi_getinfo&lt;/code&gt; to request all available fabrics which are capable of connecting to the server.&lt;/p&gt;
+&lt;p&gt;Then we pick the first of them (because this is likely the most performant) and construct a fabric.
+After this because we do not have special requirements (and have already defined our communication destination), we just create a domain at that fabric and then an endpoint with event and completion counter at that.&lt;/p&gt;
+&lt;p&gt;With the endpoint, we get a connect request that needs to be accepted from the server and confirmed via a &lt;code&gt;FI_CONNECTED&lt;/code&gt; in the event queue.&lt;/p&gt;
+&lt;p&gt;Now each time the completion counter increases, we know something has happened; for simple communication, this is enough.
+We can bind different counters or queues to this if we want to differ between incoming and outgoing completion.
+Queues enable us also to keep track of an action based on a context we may freely choose (it is basically an ID).&lt;/p&gt;
+&lt;p&gt;If you want a more detailed explanation, the official introduction to the interface can be found &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://ofiwg.github.io/libfabric/v1.13.2/man/fabric.7.html&#34;
+  
+&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;conclusion-and-first-measurements&#34;&gt;
+        Conclusion and first measurements
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/04/libfabric/#conclusion-and-first-measurements&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Conclusion and first measurements&#34; href=&#34;#conclusion-and-first-measurements&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Libfabric allows using different fabrics with the same interface.
+This way, you can write RDMA-compatible code, and Libfabric makes it also work on a system that does not support RDMA.&lt;/p&gt;
+&lt;p&gt;&lt;figure class=&#34;light-only&#34;&gt;&lt;img src=&#34;julea-gsocket-vs-libfabric-operations.png&#34;
+         alt=&#34;Comparing the performance of JULEA with GSocket using the operations per second for object creation and deletion. This shows that the performance via TCP is slightly in favor of Libfabric and that InfiniBand is multiple orders of magnitude faster than TCP, but impossible to use with GSocket.&#34;/&gt;&lt;figcaption&gt;
+            &lt;p&gt;Comparing the performance of JULEA with GSocket using the operations per second for object creation and deletion. This shows that the performance via TCP is slightly in favor of Libfabric and that InfiniBand is multiple orders of magnitude faster than TCP, but impossible to use with GSocket.&lt;/p&gt;
+        &lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;figure class=&#34;light-only&#34;&gt;&lt;img src=&#34;julea-gsocket-vs-libfabric-throughput.png&#34;
+         alt=&#34;Comparing performance of JULEA with GSocket and Libfabric network code using the througput of read and write operations. Shows that performance via TCP is similar, while performance via InfiniBand with Libfabric is multiple orders of mangitude faster, while impossible to use with GSocket.&#34;/&gt;&lt;figcaption&gt;
+            &lt;p&gt;Comparing performance of JULEA with GSocket and Libfabric network code using the througput of read and write operations. Shows that performance via TCP is similar, while performance via InfiniBand with Libfabric is multiple orders of mangitude faster, while impossible to use with GSocket.&lt;/p&gt;
+        &lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;&lt;figure class=&#34;dark-only&#34;&gt;&lt;img src=&#34;julea-gsocket-vs-libfabric-operations-dark.png&#34;
+         alt=&#34;Comparing the performance of JULEA with GSocket using the operations per second for object creation and deletion. This shows that the performance via TCP is slightly in favor of Libfabric and that InfiniBand is multiple orders of magnitude faster than TCP, but impossible to use with GSocket.&#34;/&gt;&lt;figcaption&gt;
+            &lt;p&gt;Comparing the performance of JULEA with GSocket using the operations per second for object creation and deletion. This shows that the performance via TCP is slightly in favor of Libfabric and that InfiniBand is multiple orders of magnitude faster than TCP, but impossible to use with GSocket.&lt;/p&gt;
+        &lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;figure class=&#34;dark-only&#34;&gt;&lt;img src=&#34;julea-gsocket-vs-libfabric-throughput-dark.png&#34;
+         alt=&#34;Comparing performance of JULEA with GSocket and Libfabric network code using the througput of read and write operations. Shows that performance via TCP is similar, while performance via InfiniBand with Libfabric is multiple orders of mangitude faster, while impossible to use with GSocket.&#34;/&gt;&lt;figcaption&gt;
+            &lt;p&gt;Comparing performance of JULEA with GSocket and Libfabric network code using the througput of read and write operations. Shows that performance via TCP is similar, while performance via InfiniBand with Libfabric is multiple orders of mangitude faster, while impossible to use with GSocket.&lt;/p&gt;
+        &lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;We already tested it in JULEA.
+We rewrote the &lt;code&gt;GSocket&lt;/code&gt; network code with Libfabric.
+This resulted in working InfiniBand and RDMA support.
+But also without RDMA, its performance is still similar to the &lt;code&gt;GSocket&lt;/code&gt; implementation.&lt;/p&gt;
+&lt;p&gt;Therefore, Libfabric enables to use the most efficient fabric available without having to modify the code.&lt;/p&gt;
+            </content>  
+                                <category scheme="https://blog.parcio.de/authors/julian.benda" term="julian.benda" label="julian.benda" />  
+                                <category scheme="https://blog.parcio.de/tags/Efficiency" term="Efficiency" label="Efficiency" /> 
+                                <category scheme="https://blog.parcio.de/tags/Network-Communication" term="Network-Communication" label="Network Communication" /> 
+                                <category scheme="https://blog.parcio.de/tags/Libfabric" term="Libfabric" label="Libfabric" />
+        </entry>
+</feed>

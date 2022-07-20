@@ -1,0 +1,652 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <generator uri="https://gohugo.io/" version="0.92.2">Hugo</generator>
+    <title>Profiling on Parallel Computing and I/O Blog</title>
+        <subtitle>We conduct research and development on parallel systems</subtitle>
+            <link href="https://blog.parcio.de/tags/Profiling/" rel="alternate" type="text/html" title="HTML" />
+            <link href="https://blog.parcio.de/tags/Profiling/feed.xml" rel="self" type="application/atom+xml" title="Atom" />
+    <updated>2022-07-20T18:39:34+00:00</updated>
+    <id>https://blog.parcio.de/tags/Profiling/</id>
+        <entry>
+            <title>An introduction to performance analysis and understanding profilers</title>
+            <link href="https://blog.parcio.de/posts/2022/06/performance-analysis/" rel="alternate" type="text/html"  hreflang="en" />
+            <id>https://blog.parcio.de/posts/2022/06/performance-analysis/</id>
+                    <author>
+                        <name>Kevin Kulot</name>
+                    </author>
+            <published>2022-06-14T00:00:00+00:00</published>
+            <updated>2022-06-14T00:00:00+00:00</updated>
+            <content type="html">
+                &lt;p&gt;Where performance matters, we want to make sure we know what to look for and what to optimize.
+For that we need to measure our code by analyzing its performance with tools either provided by the language or external ones called &amp;ldquo;profilers&amp;rdquo;.
+This post intends to give an overview on both of these methods while introducing some tools &amp;ndash; like &lt;code&gt;Google Benchmark&lt;/code&gt; and &lt;code&gt;perf&lt;/code&gt; &amp;ndash; and explaining their functionality.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&amp;ldquo;&lt;em&gt;Premature optimization is the root of all evil.&lt;/em&gt;&amp;rdquo;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;A famous quote by Tony Hoare, later popularised by Donald Knuth, shows why measuring performance is so important.
+If we try to optimize our code before knowing &lt;em&gt;where&lt;/em&gt; it may be needed, it might end up hindering us in the long run.
+Trying to be unnecessarily clever by, for example, replacing divisions and multiplications by powers of two with bit shifts, might just end up hurting readability while not providing any gains in performance as most compilers nowadays are able to do such trivial optimizations.&lt;/p&gt;
+&lt;p&gt;We want to do &lt;strong&gt;benchmarks&lt;/strong&gt;, more precisely &lt;strong&gt;micro benchmarks&lt;/strong&gt;.
+Micro benchmarks are for measuring small parts, like single functions or routines of our code, inspecting hot loops and investigate small things such as cache misses or assembly code generation.
+Before we perform these micro benchmarks, let&amp;rsquo;s introduce a dichotomy&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; of tools.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;In-Code Benchmarking:&lt;/strong&gt; Measuring/performing benchmarks within the language by leveraging existing functions and libraries.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Profilers:&lt;/strong&gt; External, language-agnostic tools which measure/perform benchmarks while utilizing the compiled binary and system calls.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;in-code-benchmarking&#34;&gt;
+        In-Code Benchmarking
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/06/performance-analysis/#in-code-benchmarking&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor In-Code Benchmarking&#34; href=&#34;#in-code-benchmarking&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Let&amp;rsquo;s look at and compare three different languages and what they natively provide for benchmarking and measuring performance.
+C, C++ and Rust &amp;ndash; compiled, systems programming languages &amp;ndash; all provide at least some tools necessary for capturing the current time (with varying precision), something we definitely need to begin measuring our code.
+By going from an older, relatively low-level language&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;, like C, to a newer one like Rust with more high-level abstractions, we will quickly notice a difference in ease of use and amount of options available to us while coding (micro) benchmarks.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h3 id=&#34;as-old-as-timeh-c-and-posix&#34;&gt;
+        As old as &lt;code&gt;&amp;lt;time.h&amp;gt;&lt;/code&gt;: C and POSIX
+    &lt;/h3&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/06/performance-analysis/#as-old-as-timeh-c-and-posix&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor As old as &amp;lt;time.h&amp;gt;: C and POSIX&#34; href=&#34;#as-old-as-timeh-c-and-posix&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Let&amp;rsquo;s begin with C and its &lt;a
+  class=&#34;gblog-markdown__link--code&#34;
+  href=&#34;https://en.cppreference.com/w/c/chrono&#34;
+  
+&gt;&lt;code&gt;time.h&lt;/code&gt;&lt;/a&gt; facilities:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#include&lt;/span&gt; &lt;span class=&#34;cpf&#34;&gt;&amp;lt;stdio.h&amp;gt;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;#include&lt;/span&gt; &lt;span class=&#34;cpf&#34;&gt;&amp;lt;time.h&amp;gt;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;time_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;time&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;NULL&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;c1&#34;&gt;// expensive operation
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;    &lt;span class=&#34;n&#34;&gt;time_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;time&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;NULL&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;printf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;%.2f seconds&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;\n&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;double&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;code&gt;time(...)&lt;/code&gt; returns the current calendar time, which is almost always represented as the number of seconds since &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://en.wikipedia.org/wiki/Unix_time&#34;
+  
+&gt;the Epoch (00:00:00 UTC 01/01/1970)&lt;/a&gt;, as a &lt;code&gt;time_t&lt;/code&gt; object.
+The full function signature is &lt;code&gt;time_t time(time_t* arg)&lt;/code&gt; where &lt;code&gt;arg&lt;/code&gt; acts as an out-parameter storing the same information as the return value, which is why we pass in &lt;code&gt;NULL&lt;/code&gt;.
+Since &lt;code&gt;time_t&lt;/code&gt; is just a typedef for an unspecified (implementation-defined) real type, we can compute the difference between &lt;code&gt;start&lt;/code&gt; and &lt;code&gt;end&lt;/code&gt; to get the elapsed time in seconds.
+This essentially measures so-called &amp;ldquo;wall clock time&amp;rdquo;, something we will come back to later.&lt;/p&gt;
+&lt;p&gt;One alternative time measuring facility is the &lt;code&gt;clock_t clock(void)&lt;/code&gt; function.
+Unlike &lt;code&gt;time()&lt;/code&gt;, it returns the approximate processor time, or &amp;ldquo;CPU time&amp;rdquo;, of the current process.
+Similar to &lt;code&gt;time_t&lt;/code&gt;, the returned value is also an implementation-defined real type&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt; from which we can calculate a difference.
+This &amp;ldquo;CPU time&amp;rdquo; may differ from &amp;ldquo;wall clock time&amp;rdquo; as it may advance faster or slower depending on the resources allocated by the operating system.&lt;/p&gt;
+&lt;p&gt;If we want a little more precision while still using C, the C POSIX library offers additional functionality.
+For example, &lt;a
+  class=&#34;gblog-markdown__link--code&#34;
+  href=&#34;https://man7.org/linux/man-pages/man2/gettimeofday.2.html&#34;
+  
+&gt;&lt;code&gt;gettimeofday()&lt;/code&gt;&lt;/a&gt;, provided by the &lt;code&gt;sys/time.h&lt;/code&gt; header, lets us measure with microsecond accuracy:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#include&lt;/span&gt; &lt;span class=&#34;cpf&#34;&gt;&amp;lt;stdio.h&amp;gt;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;#include&lt;/span&gt; &lt;span class=&#34;cpf&#34;&gt;&amp;lt;sys/time.h&amp;gt;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;timeval&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;tv_start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;timeval&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;tv_end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;gettimeofday&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;tv_start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;NULL&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;c1&#34;&gt;// expensive operation
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;    &lt;span class=&#34;n&#34;&gt;gettimeofday&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;tv_end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;NULL&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;printf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;%.2f µs&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;\n&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;double&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;tv_end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;tv_usec&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;tv_start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;tv_usec&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;We declare two structs of type &lt;code&gt;timeval&lt;/code&gt; as out-parameters for &lt;code&gt;gettimeofday()&lt;/code&gt; which takes two arguments: &lt;code&gt;struct timeval* tv&lt;/code&gt; and &lt;code&gt;struct timezone* tz&lt;/code&gt;.
+The &lt;code&gt;timeval&lt;/code&gt; struct holds the following information:&lt;/p&gt;
+&lt;div class=&#34;gblog-columns flex flex-wrap flex-mobile-column&#34;&gt;
+  
+    &lt;div class=&#34;gblog-columns__content gblog-markdown--nested flex-even&#34;&gt;
+      &lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;k&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;timeval&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;time_t&lt;/span&gt;      &lt;span class=&#34;n&#34;&gt;tv_sec&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;     &lt;span class=&#34;cm&#34;&gt;/* seconds */&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;suseconds_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;tv_usec&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;    &lt;span class=&#34;cm&#34;&gt;/* microseconds */&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+    &lt;/div&gt;
+  
+    &lt;div class=&#34;gblog-columns__content gblog-markdown--nested flex-even&#34;&gt;
+      This allows us to also get the amount of microseconds after the Epoch for much greater measuring precision.
+The type used to represent the microseconds, &lt;code&gt;suseconds_t&lt;/code&gt;, is usually defined as a &lt;code&gt;long&lt;/code&gt; which can hold at least 32 bits.
+    &lt;/div&gt;
+  
+&lt;/div&gt;
+
+&lt;p&gt;The second argument of &lt;code&gt;gettimeofday()&lt;/code&gt; can be used to get information about the timezone of the system though it is obsolete and flawed, hence why just passing in &lt;code&gt;NULL&lt;/code&gt; is recommended&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h3 id=&#34;a-new-dawn-c-and-chrono&#34;&gt;
+        A new dawn: C++ and &lt;code&gt;&amp;lt;chrono&amp;gt;&lt;/code&gt;
+    &lt;/h3&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/06/performance-analysis/#a-new-dawn-c-and-chrono&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor A new dawn: C&amp;#43;&amp;#43; and &amp;lt;chrono&amp;gt;&#34; href=&#34;#a-new-dawn-c-and-chrono&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;With the arrival of C++11, a more flexible collection of types for time tracking was added to the standard.
+Including the most recent changes to &lt;a
+  class=&#34;gblog-markdown__link--code&#34;
+  href=&#34;https://en.cppreference.com/w/cpp/chrono&#34;
+  
+&gt;&lt;code&gt;&amp;lt;chrono&amp;gt;&lt;/code&gt;&lt;/a&gt; as part of C++20, the following clock types are available:&lt;/p&gt;
+&lt;div class=&#34;gblog-columns flex flex-wrap flex-mobile-column&#34;&gt;
+  
+    &lt;div class=&#34;gblog-columns__content gblog-markdown--nested flex-even&#34;&gt;
+      &lt;p&gt;&lt;strong&gt;C++11&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;std::chrono::system_clock&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;std::chrono::steady_clock&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;std::chrono::high_resolution_clock&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+    &lt;/div&gt;
+  
+    &lt;div class=&#34;gblog-columns__content gblog-markdown--nested flex-even&#34;&gt;
+      &lt;p&gt;&lt;strong&gt;C++20&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;std::chrono::utc_clock&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;std::chrono::tai_clock&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;std::chrono::gps_clock&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;std::chrono::file_clock&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;std::chrono::local_t&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+    &lt;/div&gt;
+  
+&lt;/div&gt;
+
+&lt;p&gt;Now this might seem overwhelming at first but when it comes to benchmarking, the only clock types we need to look at are the ones added in C++11.
+Out of these, &lt;code&gt;std::chrono::steady_clock&lt;/code&gt; is the most suitable for measuring intervals.
+To understand why, let&amp;rsquo;s take a quick detour and talk about what a &lt;code&gt;Clock&lt;/code&gt; is according to the C++ standard and the differences between the aforementioned three types of clocks.
+In its most basic form, a clock type needs to have a starting point and a tick rate.
+A more precise definition of the requirements needed to satisfy being a &lt;code&gt;Clock&lt;/code&gt; type can be found &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://en.cppreference.com/w/cpp/named_req/Clock&#34;
+  
+&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Now, let&amp;rsquo;s compare the different clocks:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;&lt;code&gt;std::chrono::system_clock &lt;/code&gt;&lt;/th&gt;
+&lt;th&gt;&lt;code&gt;std::chrono::steady_clock &lt;/code&gt;&lt;/th&gt;
+&lt;th&gt;&lt;code&gt;std::chrono::high_resolution_clock &lt;/code&gt;&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;- system wide &lt;em&gt;wall clock time&lt;/em&gt;&lt;/td&gt;
+&lt;td&gt;- &lt;strong&gt;monotonic&lt;/strong&gt; clock&lt;/td&gt;
+&lt;td&gt;- clock with the smallest tick period&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;- system time can be adjusted&lt;/td&gt;
+&lt;td&gt;- tick frequency constant&lt;/td&gt;
+&lt;td&gt;- alias of one of the other two&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;- maps to C-style time&lt;/td&gt;
+&lt;td&gt;- not related to wall clock time&lt;/td&gt;
+&lt;td&gt;- should be avoided (implementation-defined)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;Wall clock time&lt;/strong&gt; is the actual, real time a physical clock (be it a watch or an actual wall clock) would measure.
+A wall clock may be subject to unexpected changes which would invalidate any measurements taken with it.
+It has the ability to jump backward or forward in time through manual adjustments or automatic synchronization with NTP (Network Time Protocol).
+This makes &lt;code&gt;std::chrono::system_clock&lt;/code&gt; biased and unfit for anything but giving us the current time.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Monotonic clocks&lt;/strong&gt;, like &lt;code&gt;std::chrono::steady_clock&lt;/code&gt;, on the other hand cannot jump forward or backward in time and their tick rate is constant.
+&lt;code&gt;std::chrono::steady_clock&lt;/code&gt; uses the system startup time as its Epoch and will never be adjusted.
+It acts like a stopwatch, perfect for measuring intervals but not for telling time.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s look at an example:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#include&lt;/span&gt; &lt;span class=&#34;cpf&#34;&gt;&amp;lt;chrono&amp;gt;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;#include&lt;/span&gt; &lt;span class=&#34;cpf&#34;&gt;&amp;lt;iostream&amp;gt;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;// to save us from typing std::chrono everytime
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;using&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;namespace&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;chrono&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+
+&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;steady_clock&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;now&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;c1&#34;&gt;// expensive operation
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;    &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;steady_clock&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;now&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;duration&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;duration_cast&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;milliseconds&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;).&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;count&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cout&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;duration&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;ms&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;\n&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;EXIT_SUCCESS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Just like before, we define a start and end time point with the &lt;code&gt;now()&lt;/code&gt; function of the clock.
+This static member function returns a &lt;code&gt;std::chrono::time_point&lt;/code&gt; with the current time.
+In line 12, we first compute the difference between these two, returning a &lt;code&gt;std::chrono::duration&lt;/code&gt; type, which we can then cast to actual time units with &lt;code&gt;std::chrono::duration_cast()&lt;/code&gt;.
+The availabe units range from nanoseconds to years and are passed in as a template parameter.
+Finally, &lt;code&gt;count()&lt;/code&gt; converts the chosen time unit to the underlying arithmetic type which we can then output.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h3 id=&#34;a-tale-of-abstractions-rust-et-al&#34;&gt;
+        A tale of abstractions: Rust et al.
+    &lt;/h3&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/06/performance-analysis/#a-tale-of-abstractions-rust-et-al&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor A tale of abstractions: Rust et al.&#34; href=&#34;#a-tale-of-abstractions-rust-et-al&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Now that we know how C and C++ handle time, how clocks work and the differences between wall clock time and monotonic clocks, let&amp;rsquo;s look at one final systems programming language with an even higher level of abstraction.
+Unlike C++, Rust hides most of the implementation details (and spares us from typing &lt;code&gt;std::chrono&lt;/code&gt; or verbose casts) while still providing the same level of precision:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;9
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span class=&#34;k&#34;&gt;use&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;time&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;Instant&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;fn&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Instant&lt;/span&gt;::&lt;span class=&#34;n&#34;&gt;now&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// expensive operation
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;let&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;start&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;elapsed&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;fm&#34;&gt;println!&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;{}ms&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;as_millis&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;());&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;All that is needed, is to take the current time with &lt;code&gt;Instant::now()&lt;/code&gt; as a start point, then define an end point.
+An &lt;a
+  class=&#34;gblog-markdown__link--code&#34;
+  href=&#34;https://doc.rust-lang.org/std/time/struct.Instant.html&#34;
+  
+&gt;&lt;code&gt;Instant&lt;/code&gt;&lt;/a&gt; type in Rust always represents a non-decreasing monotonic clock.
+This end point could be &amp;ndash; just like in C or C++ &amp;ndash; defined as another &lt;code&gt;Instant::now()&lt;/code&gt; and we could compute the difference but Rust also allows us to just call the &lt;code&gt;elapsed()&lt;/code&gt; method on the start point.
+This returns a &lt;a
+  class=&#34;gblog-markdown__link--code&#34;
+  href=&#34;https://doc.rust-lang.org/std/time/struct.Duration.html&#34;
+  
+&gt;&lt;code&gt;Duration&lt;/code&gt;&lt;/a&gt; and is arguably more readable and declarative than a minus sign between two non-arithmetic types while also being shorter.&lt;/p&gt;
+&lt;p&gt;Finally, we can convert the &lt;code&gt;Duration&lt;/code&gt; to time units with the corresponding methods similar to &lt;code&gt;duration_cast&amp;lt;&amp;gt;()&lt;/code&gt; in C++.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h3 id=&#34;going-from-measuring-to-benchmarking-google-benchmark&#34;&gt;
+        Going from measuring to benchmarking: Google Benchmark
+    &lt;/h3&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/06/performance-analysis/#going-from-measuring-to-benchmarking-google-benchmark&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Going from measuring to benchmarking: Google Benchmark&#34; href=&#34;#going-from-measuring-to-benchmarking-google-benchmark&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;So far, we only looked at what C, C++ and Rust offer us in terms of measuring time.
+Of course, most languages offer similar features and functions though each with a slightly different syntax.
+The goal is not to present all of these different ways of calling such functions &amp;ndash; that&amp;rsquo;s what the docs are for &amp;ndash; but rather show different levels of abstractions while also highlighting similarities in the methodology.&lt;/p&gt;
+&lt;p&gt;Things like defining start and end points, computing their difference, being aware of clock types might be something to keep in mind regardless of the language used.
+But what we did so far was not &lt;em&gt;benchmarking&lt;/em&gt;.
+In order for us to proclaim we performed a successful benchmark, we need to measure not only once but many more times.
+We need to calculate the mean or median of these multiple measurements.
+We want to rule out any random or statistical errors.
+Ideally, we also want to not have to define start and end points manually like we did before for every single measurement.&lt;/p&gt;
+&lt;p&gt;This is where (micro) benchmarking libraries come in handy.
+While many exist for every language, we are going to stick with C++ for now and take a look at &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://github.com/google/benchmark&#34;
+  
+&gt;&lt;strong&gt;Google Benchmark&lt;/strong&gt;&lt;/a&gt;.
+This open-source micro benchmarking library from Google makes timing of small code snippets much easier and allows us to get good statistical averages through repeated sampling of said snippets.&lt;/p&gt;
+&lt;p&gt;The example in their &lt;code&gt;README.md&lt;/code&gt; shows the basic idea:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;20
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#include&lt;/span&gt; &lt;span class=&#34;cpf&#34;&gt;&amp;lt;benchmark/benchmark.h&amp;gt;&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;BM_StringCreation&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;benchmark&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;State&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;state&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;nl&#34;&gt;_&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;state&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;empty_string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;// Register the function as a benchmark
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BENCHMARK&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BM_StringCreation&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;BM_StringCopy&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;benchmark&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;State&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;state&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;x&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;hello&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;nl&#34;&gt;_&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;state&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;copy&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;x&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;// Register another function as a benchmark
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BENCHMARK&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BM_StringCopy&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+
+&lt;span class=&#34;n&#34;&gt;BENCHMARK_MAIN&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Any method that we wish to benchmark has to be marked as &lt;code&gt;static&lt;/code&gt;.
+Furthermore, they also need to have a mutable reference to a &lt;code&gt;benchmark::State&lt;/code&gt; as an argument.
+By iterating over the state object with the code we wish to benchmark, we &amp;ldquo;add&amp;rdquo; to the sampling process.
+The &lt;code&gt;BENCHMARK&lt;/code&gt; macro registers the functions as a benchmark while the &lt;code&gt;BENCHMARK_MAIN()&lt;/code&gt; macro generates an appropriate &lt;code&gt;main()&lt;/code&gt; function.&lt;/p&gt;
+&lt;p&gt;If we compile the code as follows:&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;$ g++ main.cpp -std=c++11 -isystem benchmark/include -Lbenchmark/build/src -lbenchmark -lpthread -o main
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;We get this output:&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;2022-01-06T00:26:34+01:00
+Running ./main
+Run on (6 X 3696 MHz CPU s)
+Load Average: 0.52, 0.58, 0.59
+------------------------------------------------------------
+Benchmark                  Time             CPU   Iterations
+------------------------------------------------------------
+BM_StringCreation       4.27 ns         4.33 ns    165925926
+BM_StringCopy           7.84 ns         7.85 ns     89600000
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Google Benchmark creates a table displaying wall clock time, CPU time and how often each function was sampled for us.
+It is able to sample a function up to a billion times.
+Now, to make this code faster, the first step would be to turn on optimizations.
+Currently, we compile with no optimizations (&lt;code&gt;-O0&lt;/code&gt;), so let&amp;rsquo;s use &lt;code&gt;-O3&lt;/code&gt; and see what happens:&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;2022-01-07T21:27:42+01:00
+Running ./main
+Run on (6 X 3696 MHz CPU s)
+Load Average: 0.52, 0.58, 0.59
+------------------------------------------------------------
+Benchmark                  Time             CPU   Iterations
+------------------------------------------------------------
+BM_StringCreation      0.000 ns        0.000 ns   1000000000
+BM_StringCopy           4.14 ns         4.17 ns    172307692
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;At first glance we seem to have created the world&amp;rsquo;s fastest string creation function though sadly, that is not what happened.
+Taking a look at line 5 of the example code reveals the problem.
+&lt;code&gt;std::string empty_string&lt;/code&gt; is declared but we do not use it anywhere else in the code, so the compiler is smart and sees that removing it would have no side effects to the program and does so.
+Most of the time, this is the behavior we expect and want from our compiler but in this case we actually do want to keep this unused variable around.&lt;/p&gt;
+&lt;p&gt;Luckily, Google Benchmark has functions that can pretend to use a variable so the compiler can&amp;rsquo;t just remove it anymore:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;BM_StringCreation&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;benchmark&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;State&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;state&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;auto&lt;/span&gt; &lt;span class=&#34;nl&#34;&gt;_&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;state&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;std&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;empty_string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;        &lt;span class=&#34;n&#34;&gt;benchmark&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;DoNotOptimize&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;empty_string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;This allows us to still benchmark the creation of an empty string while using &lt;code&gt;-O3&lt;/code&gt;.
+There are many other ways to prevent certain optimizations from happening that would invalidate a benchmark though this and &lt;code&gt;benchmark::ClobberMemory()&lt;/code&gt; are the ones Google Benchmark provides.&lt;sup id=&#34;fnref:5&#34;&gt;&lt;a href=&#34;#fn:5&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;
+Now, our table looks much more sensible:&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;2022-01-07T21:26:18+01:00
+Running ./main
+Run on (6 X 3696 MHz CPU s)
+Load Average: 0.52, 0.58, 0.59
+------------------------------------------------------------
+Benchmark                  Time             CPU   Iterations
+------------------------------------------------------------
+BM_StringCreation      0.681 ns        0.688 ns   1000000000
+BM_StringCopy           4.04 ns         3.99 ns    172307692
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Unwanted optimizations are just one thing to be aware of when doing benchmarks.
+Depending on what is tested, we might want clear our cache before a run, do warmup runs if I/O is involved or compare the same function with differing parameters &amp;ndash; so called &amp;ldquo;parameterized benchmarks&amp;rdquo;.
+Many benchmarking libraries will have all of these advanced features and more but they are out of scope for this post.
+For quick tests and comparisons, &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://quick-bench.com/#&#34;
+  
+&gt;&lt;strong&gt;Quick Bench&lt;/strong&gt;&lt;/a&gt;, an online compiler using Google Benchmark, is a great alternative.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;profilers----more-than-just-time&#34;&gt;
+        Profilers &amp;ndash; more than just time
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/06/performance-analysis/#profilers----more-than-just-time&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Profilers &amp;ndash; more than just time&#34; href=&#34;#profilers----more-than-just-time&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;So far, we only measured the time it took for a program or a certain function to run.
+Going back to the quote presented at the beginning: in order for us to optimize our code, we need to know &lt;em&gt;what&lt;/em&gt; to optimize.
+Just benchmarking some functions will not tell us where a potential bottleneck might be &amp;ndash; we need more information about our program.&lt;/p&gt;
+&lt;p&gt;This is where &lt;strong&gt;profilers&lt;/strong&gt; shine brightest.
+Profilers are usually external, language-agnostic tools that operate on a binary and not on source code.
+They usually offer:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;(relative) timing of every function call&lt;/li&gt;
+&lt;li&gt;generating call graphs (who called what) and flamegraphs&lt;/li&gt;
+&lt;li&gt;frequency of instruction calls&lt;/li&gt;
+&lt;li&gt;frequency of generated assembly function calls&lt;/li&gt;
+&lt;li&gt;in-depth performance counter stats, e.g., branch misses, CPU cycles and many more&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There are many different profilers out there, each specialized for their own use-case&lt;sup id=&#34;fnref:6&#34;&gt;&lt;a href=&#34;#fn:6&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;6&lt;/a&gt;&lt;/sup&gt; and it can help to know how to classify different types of profilers.
+The most common types are:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Flat profilers &amp;ndash; computes average call times&lt;/li&gt;
+&lt;li&gt;Call-graph profilers &amp;ndash; shows call times, function frequencies and creates a call-chain graph&lt;/li&gt;
+&lt;li&gt;Input-sensitive profilers &amp;ndash; generate profiles and charts based on different inputs and how a function scales based on it&lt;/li&gt;
+&lt;li&gt;Event-based profilers &amp;ndash; only collect statistics when certain pre-defined events happen&lt;/li&gt;
+&lt;li&gt;Statistical profilers &amp;ndash; operate via sampling by probing the call stack through interrupts&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This classification is not mutually exclusive &amp;ndash; a profiler can offer any one or all of these features.
+We are going to take a look at one tool in particular: &lt;code&gt;perf&lt;/code&gt;.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h3 id=&#34;perf-jack-of-all-trades&#34;&gt;
+        &lt;code&gt;perf&lt;/code&gt;: jack of all trades
+    &lt;/h3&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/06/performance-analysis/#perf-jack-of-all-trades&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor perf: jack of all trades&#34; href=&#34;#perf-jack-of-all-trades&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;The reason why &lt;code&gt;perf&lt;/code&gt; is a good first choice is that almost everyone (that uses Linux&lt;sup id=&#34;fnref:7&#34;&gt;&lt;a href=&#34;#fn:7&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;) already has it as it is part of the kernel.
+It also does many of the aforementioned things just out of the box.
+Let&amp;rsquo;s start by creating a statistical profile:&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;$ perf stat ./peekng encode 123.png teSt secret
+&lt;/code&gt;&lt;/pre&gt;&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt; Performance counter stats for &#39;./peekng encode 123.png teSt secret&#39;:
+
+              2,54 msec task-clock:u              #    0,287 CPUs utilized
+                 0      context-switches:u        #    0,000 /sec
+                 0      cpu-migrations:u          #    0,000 /sec
+               187      page-faults:u             #   73,490 K/sec
+         4.724.914      cycles:u                  #    1,857 GHz
+         5.977.214      instructions:u            #    1,27  insn per cycle
+         1.103.539      branches:u                #  433,686 M/sec
+            18.837      branch-misses:u           #    1,71% of all branches
+
+       0,008852233 seconds time elapsed
+
+       0,003009000 seconds user
+       0,000000000 seconds sys
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;&lt;a
+  class=&#34;gblog-markdown__link--code&#34;
+  href=&#34;https://github.com/xkevio/peekng&#34;
+  
+&gt;&lt;code&gt;peekng&lt;/code&gt;&lt;/a&gt; here just acts as an example program, all it does is encode the word &lt;code&gt;secret&lt;/code&gt; into &lt;code&gt;123.png&lt;/code&gt;.
+As we can see, we received a lot of additional information about our program which may help with identifying optimization opportunities.
+For example, we observe 187 page faults meaning &lt;code&gt;peekng&lt;/code&gt; might have tried to access a memory page which was not loaded into RAM and had to be loaded from a disk 187 times (this is just one reason why a page fault might occur).
+This may lead us to look at how we handle file reads and writes in our program.
+Additionally, &lt;code&gt;perf stat&lt;/code&gt; shows us the time it took to execute the program as wall clock time and CPU time (user + sys).&lt;/p&gt;
+&lt;p&gt;Another thing &lt;code&gt;perf&lt;/code&gt; offers us, is creating an interactive call graph.
+This happens with a combination of &lt;code&gt;perf record&lt;/code&gt; and &lt;code&gt;perf report&lt;/code&gt; though we need to be careful to not eliminate certain debug symbols.
+Earlier, we looked at how we might want to prevent certain optimizations from happening while still using &lt;code&gt;-O3&lt;/code&gt; (or your preferred language&amp;rsquo;s equivalent) in source code &amp;ndash; now we need to fiddle with some compiler flags.&lt;/p&gt;
+&lt;p&gt;GCC, for example, has &lt;code&gt;-Og&lt;/code&gt; as an additional optimization level which optimizes for debugging experience.
+It enables some compiler passes for collecting debug information while only optimizing at a level close to &lt;code&gt;-O1&lt;/code&gt;.
+Having this additional information still in the binary will make reading and following the call graph much easier.
+Another important thing is to keep the frame pointer register.
+The frame pointer stores the current stack frame pointer in a reserved register if needed for a function.
+It allows us to get additional information about how the stack was used during runtime.
+By default, most compilers omit the frame pointer to get one additional register but this can be disabled via &lt;code&gt;-fno-omit-frame-pointer&lt;/code&gt; in GCC.&lt;/p&gt;
+&lt;p&gt;Languages that do not use the GCC backend may have similar options though under different names.
+Keeping the frame pointer under Rust, for example, actually requires us to modify the &lt;code&gt;perf record&lt;/code&gt; command slightly.
+Let&amp;rsquo;s look at how it works:&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;$ perf record [-g / --call-graph=dwarf] &amp;lt;COMMAND&amp;gt;
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0,135 MB perf.data (16 samples) ]
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Usually, the &lt;code&gt;-g&lt;/code&gt; flag will suffice to create the graph but to keep the frame pointer intact for languages like Rust, the second flag is required instead.
+To generate the call graph from the &lt;code&gt;perf.data&lt;/code&gt; file, &lt;code&gt;perf report [-g / -G]&lt;/code&gt; is used.
+Depending on if we want the function hierarchy to go from callee to caller or vice versa, either &lt;code&gt;-g&lt;/code&gt; or &lt;code&gt;-G&lt;/code&gt; is required.
+The call graph, going from caller to callee, looks like this:&lt;/p&gt;
+&lt;center&gt;
+    &lt;img src=&#34;perf-example.png&#34; width=&#34;75%&#34; height=&#34;75%&#34;&gt;
+&lt;/center&gt;
+&lt;p&gt;We can now see relative timings for every function call made, see which functions call other functions and get a more general idea of where a bottleneck might be.
+Plus, &lt;code&gt;perf&lt;/code&gt; also allows us to look at the assembly of a chosen function call by pressing the &lt;kbd&gt;A&lt;/kbd&gt; key annotated with the frequency each instruction is called with.
+Had we not done the previous steps of preventing certain optimizations and keeping debug symbols, this graph would be full of mangled function names and call hierarchies going deep into system calls.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;perf&lt;/code&gt; provides many other options like setting tracepoints and even doing kernel microbenchmarks, which we aren&amp;rsquo;t going to look at in this post, though it is certainly worth looking at what else it has to offer.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h3 id=&#34;the-underlying-kernel-interface-perf_events&#34;&gt;
+        The underlying kernel interface: &lt;code&gt;perf_events&lt;/code&gt;
+    &lt;/h3&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/06/performance-analysis/#the-underlying-kernel-interface-perf_events&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor The underlying kernel interface: perf_events&#34; href=&#34;#the-underlying-kernel-interface-perf_events&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Since the profiler tool is part of the Linux kernel, it has mostly direct access to any events the kernel picks up on.
+This is done via something called &lt;code&gt;perf_events&lt;/code&gt; &amp;ndash; an interface exported by the Linux kernel.
+It can measure events from different sources depending on the subcommand that was run.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Software events&lt;/strong&gt; are pure kernel counters, utilized in part for &lt;code&gt;perf stat&lt;/code&gt;.
+They include such things as context-switches, page faults, etc.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Hardware events&lt;/strong&gt; are events stemming from the processor itself and its PMU (Performance Monitoring Unit).
+The PMU provides a list of michro-architectural events like CPU cycles, cache misses and some others.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Tracepoint events&lt;/strong&gt;, implemented via the &lt;code&gt;ftrace&lt;/code&gt; kernel infrastructure, provide a way to interface with certain syscalls when tracing is required.&lt;/p&gt;
+&lt;p&gt;For a full list of possible events, see the &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://perf.wiki.kernel.org/index.php/Tutorial&#34;
+  
+&gt;perf wiki&lt;/a&gt;.
+The statistical profile we generated earlier came together through &lt;code&gt;perf&lt;/code&gt; keeping a running count during execution of these supported events.
+&lt;code&gt;perf_events&lt;/code&gt; uses, as the name suggests, &lt;em&gt;event-based sampling&lt;/em&gt;.
+This means that every time a certain event happens, the sampling counter is increased.
+Which event is chosen depends on how we intend to use &lt;code&gt;perf&lt;/code&gt;.
+The &lt;code&gt;record&lt;/code&gt; subcommand, for example, uses something called the &lt;code&gt;cycles&lt;/code&gt; event as its sampling event.
+The kernel maps this event to a hardware event on the PMU which depends on the manufacturer of the processor.&lt;/p&gt;
+&lt;p&gt;Once the sampling counter overflows, a sample is recorded.
+The instruction pointer then stores where the program was interrupted.
+Unfortunately, the instruction pointer may not point at where the overflow happened but rather at where the PMU was interrupted, making it possible that the wrong instructions get counted.
+This is why one always needs to be cautious when looking at graphs such as generated assembly annotated with the frequency of its execution as it might just be one or two instructions off.&lt;/p&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;&amp;ldquo;A division or contrast between two things that are or are represented as being opposed or entirely different.&amp;rdquo;&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://queue.acm.org/detail.cfm?id=3212479&#34;
+  
+&gt;https://queue.acm.org/detail.cfm?id=3212479&lt;/a&gt;&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:3&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Represented as clock ticks, not seconds &amp;ndash; convert via division by &lt;code&gt;CLOCKS_PER_SEC&lt;/code&gt;&amp;#160;&lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:4&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://man7.org/linux/man-pages/man2/gettimeofday.2.html#NOTES&#34;
+  
+&gt;https://man7.org/linux/man-pages/man2/gettimeofday.2.html#NOTES&lt;/a&gt;&amp;#160;&lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:5&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;For more details on that, see this great talk: &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://www.youtube.com/watch?v=nXaxk27zwlk&#34;
+  
+&gt;https://www.youtube.com/watch?v=nXaxk27zwlk&lt;/a&gt;&amp;#160;&lt;a href=&#34;#fnref:5&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:6&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;See &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;http://pramodkumbhar.com/2017/04/summary-of-profiling-tools/&#34;
+  
+&gt;here&lt;/a&gt; for a list of over a hundred different profilers and when to use which one&amp;#160;&lt;a href=&#34;#fnref:6&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:7&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;&lt;code&gt;perf&lt;/code&gt; is not available under Windows and also does not work with WSL (Windows Subsystem for Linux)&amp;#160;&lt;a href=&#34;#fnref:7&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+            </content>  
+                                <category scheme="https://blog.parcio.de/authors/kevin.kulot" term="kevin.kulot" label="kevin.kulot" />  
+                                <category scheme="https://blog.parcio.de/tags/Teaching" term="Teaching" label="Teaching" /> 
+                                <category scheme="https://blog.parcio.de/tags/EPEA-2021" term="EPEA-2021" label="EPEA 2021" /> 
+                                <category scheme="https://blog.parcio.de/tags/Efficiency" term="Efficiency" label="Efficiency" /> 
+                                <category scheme="https://blog.parcio.de/tags/Profiling" term="Profiling" label="Profiling" />
+        </entry>
+</feed>

@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html
+  itemscope
+  itemtype="http://schema.org/WebPage"
+  lang="en"
+  class="color-toggle-hidden"
+  
+>
+  <head>
+    <meta charset="UTF-8" />
+<meta name="referrer" content="no-referrer" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="generator" content="Hugo 0.92.2" />
+  <meta name="description" content="This post is an introduction to lossless data compression in which we will explore the approaches of entropy-based/statistical as well as dictionary-based compression and explain some of the most common algorithms." />
+  <meta name="keywords" content="ParCIO,parallel computing,parallel I/O,parallel systems,high-performance computing,storage systems,file systems,parallel programming" />
+    <meta name="author" content="Yolanda Thiel" />
+
+    <title>Lossless data compression | Parallel Computing and I/O Blog</title>
+
+    <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+<link
+  rel="icon"
+  type="image/png"
+  sizes="32x32"
+  href="/favicon/favicon-32x32.png"
+/>
+<link
+  rel="icon"
+  type="image/png"
+  sizes="16x16"
+  href="/favicon/favicon-16x16.png"
+/>
+
+    
+
+    
+  <meta
+    property="og:title"
+    content="Lossless data compression"
+  />
+  <meta property="og:site_name" content="Parallel Computing and I/O Blog" />
+  <meta property="og:description" content="This post is an introduction to lossless data compression in which we will explore the approaches of entropy-based/statistical as well as dictionary-based compression and explain some of the most common algorithms." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://blog.parcio.de/posts/2022/05/lossless-data-compression/" />
+
+<meta property="article:section" content="Posts" />
+    <meta
+      property="article:published_time"
+      content="2022-05-24T00:00:00+00:00"
+    />
+    <meta
+      property="article:modified_time"
+      content="2022-05-24T00:00:00+00:00"
+    />
+
+
+  <meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Lossless data compression" />
+  <meta name="twitter:description" content="This post is an introduction to lossless data compression in which we will explore the approaches of entropy-based/statistical as well as dictionary-based compression and explain some of the most common algorithms." />
+
+<script type="application/ld+json">
+  {
+      "@context": "http://schema.org",
+      "@type": "BlogPosting",
+      "articleSection": "Posts",
+      "name": "Lossless data compression",
+      "url" : "https://blog.parcio.de/posts/2022/05/lossless-data-compression/",
+      "headline": "Lossless data compression",
+      "description": "This post is an introduction to lossless data compression in which we will explore the approaches of entropy-based\/statistical as well as dictionary-based compression and explain some of the most common algorithms.",
+      "wordCount" : "3479",
+      "license": "CC BY-SA 4.0",
+      "inLanguage": "en",
+      "isFamilyFriendly": "true",
+      "mainEntityOfPage": {
+          "@type": "WebPage",
+          "@id": "https://blog.parcio.de/posts/2022/05/lossless-data-compression/"
+      },
+      "keywords" : [ "Teaching" , "EPEA 2021" , "Compression" ],
+      "author" : [
+          {
+              "@type": "Person",
+              "name": "Yolanda Thiel"
+          }
+      ],
+      "copyrightHolder" : "Parallel Computing and I\/O Blog",
+      "copyrightYear" : "2022",
+      "dateCreated": "2022-05-24T00:00:00.00Z",
+      "datePublished": "2022-05-24T00:00:00.00Z",
+      "dateModified": "2022-05-24T00:00:00.00Z",
+      "publisher":{
+          "@type":"Organization",
+          "name": "Parallel Computing and I/O Blog",
+          "url": "https://blog.parcio.de/",
+          "logo": {
+              "@type": "ImageObject",
+              "url": "https://blog.parcio.de/brand.svg",
+              "width":"32",
+              "height":"32"
+          }
+      }
+  }
+  </script>
+
+
+    <script src="/js/main-76d70e50.bundle.min.js"></script>
+
+<link
+  rel="preload"
+  as="font"
+  href="/fonts/Metropolis.woff2"
+  type="font/woff2"
+  crossorigin="anonymous"
+/>
+<link
+  rel="preload"
+  as="font"
+  href="/fonts/LiberationSans.woff2"
+  type="font/woff2"
+  crossorigin="anonymous"
+/>
+<link
+  rel="preload"
+  as="font"
+  href="/fonts/GeekblogIcons.woff2"
+  type="font/woff2"
+  crossorigin="anonymous"
+/>
+
+<link
+  rel="preload"
+  href="/main-2a41d6c0.min.css"
+  as="style"
+/>
+<link
+  rel="stylesheet"
+  href="/main-2a41d6c0.min.css"
+  media="all"
+/>
+
+<link
+  rel="preload"
+  href="/mobile-17932c20.min.css"
+  as="style"
+/>
+<link
+  rel="stylesheet"
+  href="/mobile-17932c20.min.css"
+  media="screen and (max-width: 45rem)"
+/>
+
+<link
+  rel="preload"
+  href="/print-8a905a2e.min.css"
+  as="style"
+/>
+<link
+  rel="stylesheet"
+  href="/print-8a905a2e.min.css"
+  media="print"
+/>
+
+<link
+  rel="preload"
+  href="/custom.css"
+  as="style"
+/>
+<link
+  rel="stylesheet"
+  href="/custom.css"
+  media="all"
+/>
+  <link href="https://blog.parcio.de/posts/2022/05/lossless-data-compression/" rel="canonical" type="text/html" />
+    <link href="https://blog.parcio.de/feed.xml" rel="alternate" type="application/atom+xml" title="Parallel Computing and I/O Blog Atom Feed" />
+
+<!-- Made with Geekblog theme https://github.com/thegeeklab/hugo-geekblog -->
+
+    
+
+  </head>
+
+  <body>
+    
+  <!-- geekblog include: sprites/geekblog.svg -->
+  <svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><defs><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_arrow_back" xmlns="http://www.w3.org/2000/svg"><path d="M31.999 14.035v3.93H7.673l11.134 11.228L16 32 .001 16.001 16 .002l2.807 2.807L7.673 14.037h24.326z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_arrow_left" xmlns="http://www.w3.org/2000/svg"><path d="M7.954 17.965v5.988L.001 16l7.953-7.953v5.988H32v3.93H7.954z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_arrow_right" xmlns="http://www.w3.org/2000/svg"><path d="M24.046 14.035V8.047L31.999 16l-7.953 7.953v-5.988H0v-3.93h24.046z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_bitbucket" xmlns="http://www.w3.org/2000/svg"><path d="M15.905 13.355c.189 1.444-1.564 2.578-2.784 1.839-1.375-.602-1.375-2.784-.034-3.403 1.151-.705 2.818.223 2.818 1.564zm1.907-.361c-.309-2.44-3.076-4.056-5.328-3.042-1.426.636-2.389 2.148-2.32 3.747.086 2.097 2.08 3.815 4.176 3.626s3.729-2.234 3.472-4.331zm4.108-9.315c-.756-.997-2.045-1.169-3.179-1.358-3.214-.516-6.513-.533-9.727.034-1.066.172-2.269.361-2.939 1.323 1.1 1.031 2.664 1.186 4.073 1.358 2.544.327 5.156.344 7.699.017 1.426-.172 3.008-.309 4.073-1.375zm.979 17.788c-.481 1.684-.206 3.953-1.994 4.932-3.076 1.701-6.806 1.89-10.191 1.289-1.787-.327-3.884-.894-4.864-2.578-.43-1.65-.705-3.334-.98-5.018l.103-.275.309-.155c5.121 3.386 12.288 3.386 17.427 0 .808.241.206 1.22.189 1.805zM26.01 4.951c-.584 3.764-1.255 7.51-1.908 11.257-.189 1.1-1.255 1.719-2.148 2.183-3.214 1.615-6.96 1.89-10.483 1.512-2.389-.258-4.829-.894-6.771-2.389-.911-.705-.911-1.908-1.083-2.922-.602-3.523-1.289-7.046-1.719-10.604.206-1.547 1.942-2.217 3.231-2.698C6.848.654 8.686.362 10.508.19c3.884-.378 7.854-.241 11.618.859 1.341.395 2.784.945 3.695 2.097.412.533.275 1.203.189 1.805z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_bookmark" xmlns="http://www.w3.org/2000/svg"><path d="M20.357 5.856q1.157 0 2.043.851t.885 2.008v23.284l-10.212-4.357-10.144 4.357V8.715q0-1.157.885-2.008t2.042-.851h14.502zm5.787 18.859V5.856q0-1.157-.851-2.042t-2.008-.885H8.715q0-1.157.885-2.042t2.043-.885h14.502q1.157 0 2.043.885t.885 2.042v23.216z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_brightness_auto" xmlns="http://www.w3.org/2000/svg"><path d="M16.846 18.938h2.382L15.22 7.785h-2.44L8.772 18.938h2.382l.871-2.44h3.95zm7.087-9.062L27.999 14l-4.066 4.124v5.809h-5.809L14 27.999l-4.124-4.066H4.067v-5.809L.001 14l4.066-4.124V4.067h5.809L14 .001l4.124 4.066h5.809v5.809zm-11.385 4.937L14 10.282l1.452 4.531h-2.904z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_brightness_dark" xmlns="http://www.w3.org/2000/svg"><path d="M14 21.435q3.079 0 5.257-2.178T21.435 14t-2.178-5.257T14 6.565q-1.51 0-3.079.697 1.917.871 3.108 2.701T15.22 14t-1.191 4.037-3.108 2.701q1.568.697 3.079.697zm9.933-11.559L27.999 14l-4.066 4.124v5.809h-5.809L14 27.999l-4.124-4.066H4.067v-5.809L.001 14l4.066-4.124V4.067h5.809L14 .001l4.124 4.066h5.809v5.809z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_brightness_light" xmlns="http://www.w3.org/2000/svg"><path d="M14 21.435q3.079 0 5.257-2.178T21.435 14t-2.178-5.257T14 6.565 8.743 8.743 6.565 14t2.178 5.257T14 21.435zm9.933-3.311v5.809h-5.809L14 27.999l-4.124-4.066H4.067v-5.809L.001 14l4.066-4.124V4.067h5.809L14 .001l4.124 4.066h5.809v5.809L27.999 14z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_check" xmlns="http://www.w3.org/2000/svg"><path d="M8.885 20.197L25.759 3.323l2.24 2.24L8.885 24.677 0 15.792l2.24-2.24z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_check_circle_outline" xmlns="http://www.w3.org/2000/svg"><path d="M14 25.239q4.601 0 7.92-3.319T25.239 14 21.92 6.08 14 2.761 6.08 6.08 2.761 14t3.319 7.92T14 25.239zM14 0q5.784 0 9.892 4.108T28 14t-4.108 9.892T14 28t-9.892-4.108T0 14t4.108-9.892T14 0zm6.441 7.822l1.972 1.972-11.239 11.239L4.207 14l1.972-1.972 4.995 4.995z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_clear" xmlns="http://www.w3.org/2000/svg"><path d="M32 3.222L19.222 16 32 28.778l-3.221 3.221-12.778-12.778L3.223 31.999.002 28.778 12.78 16 .002 3.222 3.223.001l12.778 12.778L28.779.001z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_cloud_off" xmlns="http://www.w3.org/2000/svg"><path d="M9.023 10.5H7q-1.914 0-3.281 1.395t-1.367 3.309 1.367 3.281T7 19.852h11.375zM3.5 4.976l1.477-1.477L24.5 23.022l-1.477 1.477-2.352-2.297H6.999q-2.898 0-4.949-2.051t-2.051-4.949q0-2.844 1.969-4.867t4.758-2.133zm19.086 5.578q2.242.164 3.828 1.832T28 16.351q0 3.008-2.461 4.758l-1.695-1.695q1.805-.984 1.805-3.063 0-1.422-1.039-2.461t-2.461-1.039h-1.75v-.602q0-2.68-1.859-4.539t-4.539-1.859q-1.531 0-2.953.711l-1.75-1.695Q11.431 3.5 14.001 3.5q2.953 0 5.496 2.078t3.09 4.977z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_code" xmlns="http://www.w3.org/2000/svg"><path d="M9.917 24.5a1.75 1.75 0 10-3.501.001 1.75 1.75 0 003.501-.001zm0-21a1.75 1.75 0 10-3.501.001A1.75 1.75 0 009.917 3.5zm11.666 2.333a1.75 1.75 0 10-3.501.001 1.75 1.75 0 003.501-.001zm1.75 0a3.502 3.502 0 01-1.75 3.026c-.055 6.581-4.721 8.039-7.82 9.023-2.898.911-3.846 1.349-3.846 3.117v.474a3.502 3.502 0 011.75 3.026c0 1.932-1.568 3.5-3.5 3.5s-3.5-1.568-3.5-3.5c0-1.294.711-2.424 1.75-3.026V6.526A3.502 3.502 0 014.667 3.5c0-1.932 1.568-3.5 3.5-3.5s3.5 1.568 3.5 3.5a3.502 3.502 0 01-1.75 3.026v9.06c.93-.456 1.914-.766 2.807-1.039 3.391-1.075 5.323-1.878 5.359-5.687a3.502 3.502 0 01-1.75-3.026c0-1.932 1.568-3.5 3.5-3.5s3.5 1.568 3.5 3.5z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_contacts" xmlns="http://www.w3.org/2000/svg"><path d="M22.688 22.688v-2q0-1.5-2.281-2.438t-4.406-.938-4.406.938-2.281 2.438v2h13.375zM16 9q-1.25 0-2.125.875T13 12t.875 2.125T16 15t2.125-.875T19 12t-.875-2.125T16 9zm10.688-3.687q1.063 0 1.844.813t.781 1.875v16q0 1.063-.781 1.875t-1.844.813H5.313q-1.063 0-1.844-.813t-.781-1.875v-16q0-1.063.781-1.875t1.844-.813h21.375zM5.313 32v-2.688h21.375V32H5.313zM26.688 0v2.688H5.313V0h21.375z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_copy" xmlns="http://www.w3.org/2000/svg"><path d="M23.502 25.438V7.626H9.562v17.812h13.94zm0-20.315q1.013 0 1.787.745t.774 1.757v17.812q0 1.013-.774 1.787t-1.787.774H9.562q-1.013 0-1.787-.774t-.774-1.787V7.625q0-1.013.774-1.757t1.787-.745h13.94zM19.689 0v2.562H4.438v17.812H1.936V2.562q0-1.013.745-1.787T4.438.001h15.251z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_create" xmlns="http://www.w3.org/2000/svg"><path d="M31.499 7.167l-3.25 3.25-6.666-6.666 3.25-3.25q.5-.5 1.25-.5t1.25.5l4.166 4.166q.5.5.5 1.25t-.5 1.25zM.001 25.333L19.667 5.667l6.666 6.666L6.667 31.999H.001v-6.666z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_dangerous" xmlns="http://www.w3.org/2000/svg"><path d="M21.802 19.833L15.969 14l5.833-5.833-1.969-1.969L14 12.031 8.167 6.198 6.198 8.167 12.031 14l-5.833 5.833 1.969 1.969L14 15.969l5.833 5.833zM19.833 0L28 8.167v11.666L19.833 28H8.167L0 19.833V8.167L8.167 0h11.666z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_date" xmlns="http://www.w3.org/2000/svg"><path d="M27.192 28.844V11.192H4.808v17.652h22.384zm0-25.689q1.277 0 2.253.976t.976 2.253v22.459q0 1.277-.976 2.216t-2.253.939H4.808q-1.352 0-2.291-.901t-.939-2.253V6.385q0-1.277.939-2.253t2.291-.976h1.577V.001h3.23v3.155h12.769V.001h3.23v3.155h1.577zm-3.155 11.267v3.155h-3.23v-3.155h3.23zm-6.46 0v3.155h-3.155v-3.155h3.155zm-6.384 0v3.155h-3.23v-3.155h3.23z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_download" xmlns="http://www.w3.org/2000/svg"><path d="M2.866 28.209h26.269v3.79H2.866v-3.79zm26.268-16.925L16 24.418 2.866 11.284h7.493V.001h11.283v11.283h7.493z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_email" xmlns="http://www.w3.org/2000/svg"><path d="M28.845 9.615v-3.23L16 14.422 3.155 6.385v3.23L16 17.577zm0-6.46q1.277 0 2.216.977T32 6.385v19.23q0 1.277-.939 2.253t-2.216.977H3.155q-1.277 0-2.216-.977T0 25.615V6.385q0-1.277.939-2.253t2.216-.977h25.69z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_error_outline" xmlns="http://www.w3.org/2000/svg"><path d="M14 25.239q4.601 0 7.92-3.319T25.239 14 21.92 6.08 14 2.761 6.08 6.08 2.761 14t3.319 7.92T14 25.239zM14 0q5.784 0 9.892 4.108T28 14t-4.108 9.892T14 28t-9.892-4.108T0 14t4.108-9.892T14 0zm-1.38 6.967h2.761v8.413H12.62V6.967zm0 11.239h2.761v2.826H12.62v-2.826z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_fire" xmlns="http://www.w3.org/2000/svg"><path d="M17.689 21.998q-.32.32-.8.576t-.864.384q-1.152.384-2.272.032t-1.888-.992q-.128-.128-.096-.256t.16-.192q1.216-.384 1.92-1.216t.96-1.792q.192-.896-.064-1.728t-.384-1.728q-.128-.704-.096-1.376t.288-1.312q0-.128.128-.128t.192.064q.384.832.992 1.472t1.28 1.216 1.216 1.248.672 1.568q.064.384.064.704.064.96-.32 1.92t-1.088 1.536zm3.84-10.944q-.768-.704-1.6-1.28t-1.6-1.344q-1.536-1.536-2.016-3.584t.16-4.16q.128-.32-.096-.544t-.544-.096q-.768.32-1.44.768t-1.312.896q-1.984 1.664-3.136 3.936T8.633 10.51t.8 5.088q0 .128.032.256t.032.256q0 .576-.512.832t-1.024-.192q-.128-.192-.192-.32-1.024-1.28-1.376-2.912t-.096-3.232q.064-.384-.288-.576t-.608.128q-1.28 1.664-1.856 3.68t-.448 4.064q0 .576.096 1.184t.288 1.184q.448 1.536 1.216 2.816 1.216 2.048 3.264 3.424t4.416 1.696q2.496.32 5.024-.256t4.448-2.304q1.408-1.344 2.208-3.104t.864-3.68-.704-3.712q-.064-.128-.096-.224t-.096-.224q-.576-1.088-1.28-1.984-.256-.384-.544-.704t-.672-.64z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_git" xmlns="http://www.w3.org/2000/svg"><path d="M27.472 12.753L15.247.529a1.803 1.803 0 00-2.55 0l-2.84 2.84 2.137 2.137a2.625 2.625 0 013.501 3.501l3.499 3.499a2.625 2.625 0 11-1.237 1.237l-3.499-3.499c-.083.04-.169.075-.257.106v7.3a2.626 2.626 0 11-1.75 0v-7.3a2.626 2.626 0 01-1.494-3.607L8.62 4.606l-8.09 8.09a1.805 1.805 0 000 2.551l12.225 12.224a1.803 1.803 0 002.55 0l12.168-12.168a1.805 1.805 0 000-2.551z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_github" xmlns="http://www.w3.org/2000/svg"><path d="M16 .394c8.833 0 15.999 7.166 15.999 15.999 0 7.062-4.583 13.062-10.937 15.187-.813.146-1.104-.354-1.104-.771 0-.521.021-2.25.021-4.396 0-1.5-.5-2.458-1.083-2.958 3.562-.396 7.312-1.75 7.312-7.896 0-1.75-.625-3.167-1.646-4.291.167-.417.708-2.042-.167-4.25-1.333-.417-4.396 1.646-4.396 1.646a15.032 15.032 0 00-8 0S8.937 6.602 7.603 7.018c-.875 2.208-.333 3.833-.167 4.25-1.021 1.125-1.646 2.542-1.646 4.291 0 6.125 3.729 7.5 7.291 7.896-.458.417-.875 1.125-1.021 2.146-.917.417-3.25 1.125-4.646-1.333-.875-1.521-2.458-1.646-2.458-1.646-1.562-.021-.104.979-.104.979 1.042.479 1.771 2.333 1.771 2.333.938 2.854 5.396 1.896 5.396 1.896 0 1.333.021 2.583.021 2.979 0 .417-.292.917-1.104.771C4.582 29.455-.001 23.455-.001 16.393-.001 7.56 7.165.394 15.998.394zM6.063 23.372c.042-.083-.021-.187-.146-.25-.125-.042-.229-.021-.271.042-.042.083.021.187.146.25.104.062.229.042.271-.042zm.646.709c.083-.062.062-.208-.042-.333-.104-.104-.25-.146-.333-.062-.083.062-.062.208.042.333.104.104.25.146.333.062zm.625.937c.104-.083.104-.25 0-.396-.083-.146-.25-.208-.354-.125-.104.062-.104.229 0 .375s.271.208.354.146zm.875.875c.083-.083.042-.271-.083-.396-.146-.146-.333-.167-.417-.062-.104.083-.062.271.083.396.146.146.333.167.417.062zm1.187.521c.042-.125-.083-.271-.271-.333-.167-.042-.354.021-.396.146s.083.271.271.312c.167.062.354 0 .396-.125zm1.313.104c0-.146-.167-.25-.354-.229-.187 0-.333.104-.333.229 0 .146.146.25.354.229.187 0 .333-.104.333-.229zm1.208-.208c-.021-.125-.187-.208-.375-.187-.187.042-.312.167-.292.312.021.125.187.208.375.167s.312-.167.292-.292z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_gitlab" xmlns="http://www.w3.org/2000/svg"><path d="M1.629 11.034L14 26.888.442 17.048a1.09 1.09 0 01-.39-1.203l1.578-4.811zm7.217 0h10.309l-5.154 15.854zM5.753 1.475l3.093 9.559H1.63l3.093-9.559a.548.548 0 011.031 0zm20.618 9.559l1.578 4.811c.141.437-.016.922-.39 1.203l-13.558 9.84 12.371-15.854zm0 0h-7.216l3.093-9.559a.548.548 0 011.031 0z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_heart" xmlns="http://www.w3.org/2000/svg"><path d="M16 29.714a1.11 1.11 0 01-.786-.321L4.072 18.643c-.143-.125-4.071-3.714-4.071-8 0-5.232 3.196-8.357 8.535-8.357 3.125 0 6.053 2.464 7.464 3.857 1.411-1.393 4.339-3.857 7.464-3.857 5.339 0 8.535 3.125 8.535 8.357 0 4.286-3.928 7.875-4.089 8.035L16.785 29.392c-.214.214-.5.321-.786.321z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_info_outline" xmlns="http://www.w3.org/2000/svg"><path d="M12.62 9.793V6.967h2.761v2.826H12.62zM14 25.239q4.601 0 7.92-3.319T25.239 14 21.92 6.08 14 2.761 6.08 6.08 2.761 14t3.319 7.92T14 25.239zM14 0q5.784 0 9.892 4.108T28 14t-4.108 9.892T14 28t-9.892-4.108T0 14t4.108-9.892T14 0zm-1.38 21.033V12.62h2.761v8.413H12.62z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_keyboard_arrow_down" xmlns="http://www.w3.org/2000/svg"><path d="M3.281 5.36L14 16.079 24.719 5.36 28 8.641l-14 14-14-14z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_keyboard_arrow_left" xmlns="http://www.w3.org/2000/svg"><path d="M25.875 28.25L22.125 32 6.126 16.001 22.125.002l3.75 3.75-12.25 12.25z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_keyboard_arrow_right" xmlns="http://www.w3.org/2000/svg"><path d="M6.125 28.25L18.375 16 6.125 3.75 9.875 0l15.999 15.999L9.875 31.998z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_keyboard_arrow_up" xmlns="http://www.w3.org/2000/svg"><path d="M24.719 22.64L14 11.921 3.281 22.64 0 19.359l14-14 14 14z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_link" xmlns="http://www.w3.org/2000/svg"><path d="M24.037 7.963q3.305 0 5.634 2.366T32 16t-2.329 5.671-5.634 2.366h-6.46v-3.08h6.46q2.028 0 3.493-1.465t1.465-3.493-1.465-3.493-3.493-1.465h-6.46v-3.08h6.46zM9.615 17.578v-3.155h12.77v3.155H9.615zM3.005 16q0 2.028 1.465 3.493t3.493 1.465h6.46v3.08h-6.46q-3.305 0-5.634-2.366T0 16.001t2.329-5.671 5.634-2.366h6.46v3.08h-6.46q-2.028 0-3.493 1.465t-1.465 3.493z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_menu" xmlns="http://www.w3.org/2000/svg"><path d="M.001 5.334h31.998v3.583H.001V5.334zm0 12.416v-3.5h31.998v3.5H.001zm0 8.916v-3.583h31.998v3.583H.001z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_notifications" xmlns="http://www.w3.org/2000/svg"><path d="M25.846 22.154l3.308 3.308v1.615H2.847v-1.615l3.308-3.308V14q0-3.846 1.961-6.692t5.423-3.692V2.462q0-1 .692-1.731T16 0t1.769.731.692 1.731v1.154q3.461.846 5.423 3.692T25.846 14v8.154zM16 32q-1.385 0-2.346-.923t-.962-2.308h6.615q0 1.308-1 2.269T15.999 32z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_person" xmlns="http://www.w3.org/2000/svg"><path d="M16 20.023q5.052 0 10.526 2.199t5.473 5.754v4.023H0v-4.023q0-3.555 5.473-5.754t10.526-2.199zM16 16q-3.275 0-5.614-2.339T8.047 8.047t2.339-5.661T16 0t5.614 2.386 2.339 5.661-2.339 5.614T16 16z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_pin" xmlns="http://www.w3.org/2000/svg"><path d="M17.6 19.2h9.6v-1.6L22.4 16V3.2l4.8-1.6V0H4.8v1.6l4.8 1.6V16l-4.8 1.6v1.6h9.6v11.2L16 32l1.6-1.6V19.2z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_rss_feed" xmlns="http://www.w3.org/2000/svg"><path d="M-.481 12.048q8.482 0 14.457 5.976t5.976 14.457h-5.879q0-5.976-4.289-10.264T-.48 17.928v-5.879zm0-11.565q13.204 0 22.601 9.397t9.397 22.601h-5.783q0-10.891-7.662-18.553T-.481 6.266V.483zm0 27.468q0-1.831 1.301-3.132t3.229-1.301 3.181 1.253 1.253 3.181-1.301 3.229-3.132 1.301q-1.928 0-3.229-1.301T-.48 27.952z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_search" xmlns="http://www.w3.org/2000/svg"><path d="M11.925 20.161q3.432 0 5.834-2.402t2.402-5.834-2.402-5.834-5.834-2.402-5.834 2.402-2.402 5.834 2.402 5.834 5.834 2.402zm10.981 0L32 29.255 29.255 32l-9.094-9.094v-1.458l-.515-.515q-3.26 2.831-7.721 2.831-4.976 0-8.45-3.432T.001 11.925t3.474-8.45 8.45-3.474 8.407 3.474 3.432 8.45q0 1.802-.858 4.075t-1.973 3.646l.515.515h1.458z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_security" xmlns="http://www.w3.org/2000/svg"><path d="M16 0l13.072 5.855v8.715q0 6.059-3.745 11.063T16 31.999q-5.583-1.362-9.327-6.366T2.928 14.57V5.855zm0 16v13.004q4.017-1.294 6.808-4.868T26.144 16H16zm0 0V3.2L5.856 7.693v8.306H16z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_star" xmlns="http://www.w3.org/2000/svg"><path d="M14 22.052L5.324 27.31l2.3-9.859L0 10.813l10.056-.854L14 .692l3.944 9.267L28 10.813l-7.624 6.638 2.3 9.859z"/></svg><svg viewBox="-7.27 -7.27 42.55 42.55" id="gblog_tag" xmlns="http://www.w3.org/2000/svg"><path d="M17.52 17.52v-7.041h-7.041v7.041h7.041zM28 10.479h-7.041v7.041H28v3.439h-7.041V28H17.52v-7.041h-7.041V28H7.04v-7.041H-.001V17.52H7.04v-7.041H-.001V7.04H7.04V-.001h3.439V7.04h7.041V-.001h3.439V7.04H28v3.439z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_timer" xmlns="http://www.w3.org/2000/svg"><path d="M16 29q4.428 0 7.536-3.143t3.107-7.571-3.107-7.536T16 7.643 8.464 10.75t-3.107 7.536 3.107 7.571T16 29zM26.714 9.786q1.214 1.571 2.107 4.036t.893 4.464q0 5.643-4 9.678T16 32t-9.714-4.036-4-9.678 4-9.678T16 4.572q1.929 0 4.464.929t4.107 2.143l2.143-2.214q1.143.929 2.143 2.143zM14.5 19.857v-9.143h3v9.143h-3zM20.571.001v3.071h-9.143V.001h9.143z"/></svg><svg viewBox="-7.27 -7.27 46.55 46.55" id="gblog_tree" xmlns="http://www.w3.org/2000/svg"><path d="M32 14.423H20.808V9.616h-3.23v12.77h3.23v-4.807H32v12.845H20.808v-4.807h-6.385v-16h-3.23v4.807H.001V1.579h11.192v4.807h9.615V1.579H32v12.845z"/></svg></defs></svg>
+
+
+
+
+    <div
+      class="wrapper "
+    >
+      <header class="gblog-header">
+  <div class="container flex flex-wrap">
+    <div class="gblog-header__col-1 flex justify-start hidden-mobile"></div>
+    <div class="gblog-header__col-2 flex align-center justify-center ">
+      <a class="gblog-header__link" rel="me" href="https://blog.parcio.de/">
+        <span class="gblog-brand flex align-center justify-center">
+          <img
+            class="gblog-brand__img"
+            src="/brand.svg"
+            alt=""
+          />
+          <span class="gblog-brand__title">Parallel Computing and I/O Blog</span>
+        </span>
+        
+          <span class="gblog-brand__subtitle flex align-center justify-center">We conduct research and development on parallel systems</span>
+        
+      </a>
+    </div>
+    <div class="gblog-header__col-3 flex justify-end">
+      <span id="gblog-color-theme">
+        <svg class="gblog-icon gblog_brightness_dark">
+          <title></title>
+          <use xlink:href="#gblog_brightness_dark"></use>
+        </svg>
+        <svg class="gblog-icon gblog_brightness_light">
+          <title></title>
+          <use xlink:href="#gblog_brightness_light"></use>
+        </svg>
+        <svg class="gblog-icon gblog_brightness_auto">
+          <title></title>
+          <use xlink:href="#gblog_brightness_auto"></use>
+        </svg>
+      </span>
+    </div>
+  </div>
+</header>
+<nav class="gblog-nav">
+  <input type="checkbox" id="menu-control" class="hidden" />
+  <div class="gblog-nav__control">
+    <label for="menu-control" class="flex align-center justify-center">
+      <svg class="gblog-icon gblog_menu"><use xlink:href="#gblog_menu"></use></svg>
+      <svg class="gblog-icon gblog_clear"><use xlink:href="#gblog_clear"></use></svg>
+      <span>Navigation</span>
+    </label>
+  </div>
+  <ul class="gblog-nav__list container flex flex-wrap justify-center menu-content">
+    
+    
+    
+      
+
+  
+  
+  
+
+  
+    
+      
+      
+      
+
+      
+        <li>
+          <a
+            href="/tags/Correctness/"
+            class="gblog-nav__entry"
+          >
+            <span class="flex align-center">
+              
+                <svg class="gblog-icon gblog_bookmark"><use xlink:href="#gblog_bookmark"></use></svg>
+              
+              <span>
+                Correctness
+              </span>
+            </span>
+          </a>
+        </li>
+      
+    
+  
+    
+      
+      
+      
+
+      
+        <li>
+          <a
+            href="/tags/Efficiency/"
+            class="gblog-nav__entry"
+          >
+            <span class="flex align-center">
+              
+                <svg class="gblog-icon gblog_bookmark"><use xlink:href="#gblog_bookmark"></use></svg>
+              
+              <span>
+                Efficiency
+              </span>
+            </span>
+          </a>
+        </li>
+      
+    
+  
+    
+      
+      
+      
+
+      
+        <li>
+          <a
+            href="https://parcio.ovgu.de/"
+            class="gblog-nav__entry"
+          >
+            <span class="flex align-center">
+              
+                <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+              
+              <span>
+                ParCIO Website
+              </span>
+            </span>
+          </a>
+        </li>
+      
+    
+  
+
+
+
+
+
+
+    
+  </ul>
+</nav>
+
+
+
+      <main class="gblog-page container">
+        
+  <article class="gblog-post">
+    <header class="gblog-post__header">
+      
+      
+
+
+      <h1 class="gblog-post__title">Lossless data compression</h1>
+
+      
+        <div class="flex flex-wrap align-center gblog-post__meta gblog-post__meta--head">
+          <span class="flex align-center no-wrap">
+  <svg class="gblog-icon gblog_date"><use xlink:href="#gblog_date"></use></svg>
+  <span class="gblog-post__tag">
+    <time datetime="2022-05-24T00:00:00Z">
+      
+      May 24, 2022
+    </time>
+  </span>
+</span>
+
+<span class="flex align-center no-wrap">
+  <svg class="gblog-icon gblog_timer"><use xlink:href="#gblog_timer"></use></svg>
+  <span class="gblog-post__tag">17 min read</span>
+</span>
+
+
+
+
+
+  
+    
+    
+      
+        <span class="flex align-center no-wrap">
+          <svg class="gblog-icon gblog_person"><use xlink:href="#gblog_person"></use></svg>
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a class="gblog-button__link" href="/authors/yolanda.thiel/" title="All posts of this author">
+      Yolanda Thiel
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+
+
+
+
+  
+    
+    
+      
+        <span class="flex align-center no-wrap">
+          <svg class="gblog-icon gblog_bookmark"><use xlink:href="#gblog_bookmark"></use></svg>
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a
+      class="gblog-button__link"
+      href="/tags/Compression/"
+      title="All posts tagged with 'Compression'"
+    >
+      Compression
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+    
+    
+      
+        <span class="flex align-center">
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a
+      class="gblog-button__link"
+      href="/tags/EPEA-2021/"
+      title="All posts tagged with 'EPEA 2021'"
+    >
+      EPEA 2021
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+    
+    
+      
+        <span class="flex align-center">
+          
+  <span class="gblog-post__tag gblog-button gblog-button--regular">
+    <a
+      class="gblog-button__link"
+      href="/tags/Teaching/"
+      title="All posts tagged with 'Teaching'"
+    >
+      Teaching
+    </a>
+  </span>
+
+        </span>
+      
+    
+    
+  
+
+
+
+
+
+
+        </div>
+      
+    </header>
+    <section class="gblog-markdown">
+      <p>This post is an introduction to lossless data compression in which we will explore the approaches of entropy-based/statistical as well as dictionary-based compression and explain some of the most common algorithms.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="but-first-of-all-why-do-we-even-need-data-compression">
+        But first of all, why do we even need data compression?
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#but-first-of-all-why-do-we-even-need-data-compression" class="gblog-post__anchor clip flex align-center" aria-label="Anchor But first of all, why do we even need data compression?" href="#but-first-of-all-why-do-we-even-need-data-compression">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>Audio and video communication as well as large multimedia platforms as we know them today are only possible because of data compression.
+Usually, every single photo or video posted on social media or video/streaming platforms has to be compressed.
+Otherwise, the size of the data would be too large to deal with effectively.
+Of course, in scientific research, there are also fields of application where we generate or measure large amounts of data.
+To store all this data, we need data compression.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="basics">
+        Basics
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#basics" class="gblog-post__anchor clip flex align-center" aria-label="Anchor Basics" href="#basics">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>A data compression technique usually contains two algorithms:</p>
+<ol>
+<li>One compression algorithm which takes the original input A and generates a representation of this original input A' which (ideally) requires less bits than A.</li>
+<li>One reconstruction/decoding algorithm which operates on the compressed representation A' and generates the reconstruction B.</li>
+</ol>
+<p>If B is identical to A, the compression is called lossless.
+If B differs from A, the compression is called lossy.
+To compare different compression algorithms it is possible to use the data compression ratio which can be calculated by dividing the uncompressed size by the compressed size of the data.</p>
+
+
+  
+  <link
+    rel="stylesheet"
+    href="/katex-93898449.min.css"
+  />
+  <script defer src="/js/katex-52df6cf1.bundle.min.js"></script>
+  
+
+
+
+<span class="gblog-katex ">
+  \(\text{data compression ratio} = \frac{\text{uncompressed size of data}}{\text{compressed size of data}} = \frac{\text{size of A}}{\text{size of A&#39;}}\)</span>
+<p>Of course, this is only one of different useful measurements and the performance of compression algorithms is highly dependent on the input data.
+But if there are several algorithms that are suitable for the data which is to be compressed, comparing the compression ratio could be sensible.<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup></p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="a-first-compression-algorithm-run-length-encoding-rle">
+        A first compression algorithm: Run-Length Encoding (RLE)
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#a-first-compression-algorithm-run-length-encoding-rle" class="gblog-post__anchor clip flex align-center" aria-label="Anchor A first compression algorithm: Run-Length Encoding (RLE)" href="#a-first-compression-algorithm-run-length-encoding-rle">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>Let us have a look at this rather easy compression algorithm, called <strong>run-length encoding</strong>:
+It stores <strong>runs</strong> of data as single data value and count.
+A <strong>run</strong> is a sequence in which the same data value occurs in consecutive data elements.</p>
+<p>Let&rsquo;s consider a line of 10 pixels, where the pixels can either be white or black.
+If W stands for a white pixel and B for a  black pixel, we could have data which looks like this: <code>BBBBBWWWWW</code>.
+A run-length encoding algorithm could compress this input as following <code>5B5W</code>, because there are 5 black pixels followed by 5 white pixels.
+So instead of saving 10 characters, the output of RLE would only need 4 characters.</p>
+<p><em>Of course, we do not need to use chars but also could use other data types to save and compress our data. We use chars in this example because this should make it easier to understand the concept.</em></p>
+<p>This approach works best if there are many longer runs in the data.
+Therefore, the best case scenario of the input for our example would be <code>WWWWWWWWWW</code> or <code>BBBBBBBBBB</code>, because this input can be compressed as <code>10W</code> or <code>10B</code>, which is the shortest possible output for this example.
+In this case we would have a compression ratio of 
+
+
+
+<span class="gblog-katex ">
+  \(\frac{10}{3} = 3.\overline{3}\)</span>(also sometimes displayed as 10:3).</p>
+<p>But if there aren&rsquo;t many runs in the file, which is to be compressed, the output file of the algorithm might be larger than the input file.
+In the case of our example the worst case would be one of these input files: <code>WBWBWBWBWB</code> <code>BWBWBWBWBW</code>.<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup></p>
+<hr>
+<details style="cursor: pointer;">
+<summary>What would be the compression rate in this worst case? <i>Click to show the answer.</i></summary>
+<p>0.5, because the uncompressed size is 10 chars and the 'compressed' size is 20 chars.</p>
+</details>
+<hr>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="entropy-basedstatistical-compression">
+        Entropy-based/statistical compression
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#entropy-basedstatistical-compression" class="gblog-post__anchor clip flex align-center" aria-label="Anchor Entropy-based/statistical compression" href="#entropy-basedstatistical-compression">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>The next approaches, we want to get to know, are called entropy-based because they use the entropy of the given data.
+The entropy of data depends on the probabilities of certain symbols to occur in the given data.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>
+While Run-Length Encoding assigns a fixed-size code to the symbols it operates on, entropy-based approaches have variable-sized codes.
+Entropy-based approaches work by replacing unique symbols within the input data with a unique and shorter prefix code.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>
+To ensure a good compression ratio, the used prefix should be shorter the more often a symbol occurs.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup> <sup id="fnref:5"><a href="#fn:5" class="footnote-ref" role="doc-noteref">5</a></sup>
+Examples of this approach are arithmetic coding, Shannon-Fano coding and Huffman coding.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h3 id="huffman-coding">
+        Huffman coding
+    </h3>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#huffman-coding" class="gblog-post__anchor clip flex align-center" aria-label="Anchor Huffman coding" href="#huffman-coding">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>We will explore some of the previously mentioned properties of entropy-based compression algorithms on the example of Huffman coding.</p>
+<div align="center">
+  <figure>
+    <img src="huffman-coding-toennies.png" alt="Huffman Coding example Tönnies">
+    <figcaption>This example is taken from page 136 of Tönnies' book "Grundlagen der Bildverarbeitung".<sup>6</sup></figcaption>
+  </figure>
+</div>
+<p>In this example we want to compress the image shown on the top.
+To do so, we create a normed histogram of all values as the first step.
+In the image itself but also in its histogram we can see that the darkest possible greyscale value occurs quite often while the other lighter greyscale values have lower frequencies.
+The algorithm now merges the symbols according to their frequency until there are only 2 symbols left.
+So in the case of the example, the two least frequent greyscale values are merged in every step.
+Then the original symbols are given new prefix codes.
+Symbols which were previously merged are broken down into segments and for every segment the code is extended.
+Therefore, the most occuring symbol gets the shortest prefix code and the least occuring symbol gets the longest prefix code.
+The prefix code assignment is represented in a binary tree, which is also traversed to decode the information.<sup id="fnref:6"><a href="#fn:6" class="footnote-ref" role="doc-noteref">6</a></sup>
+This approach produces the best code when the probabilities of symbols are negative powers of 2.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup></p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="dictionary-based-compression">
+        Dictionary-based compression
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#dictionary-based-compression" class="gblog-post__anchor clip flex align-center" aria-label="Anchor Dictionary-based compression" href="#dictionary-based-compression">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>Dictionary-based approaches are the last group of lossless data compression algorithms we will cover in this article.
+Unlike entropy-based approaches, dictionary-based ones do <strong>not</strong> use a statistical model or a variable-sized code.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup></p>
+<p>Dictionary-based algorithms partition the data into phrases which are non-overlapping subsets of the original data.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>
+Each phrase is then encoded as a token using a dictionary.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>
+Accordingly, there are two stages in a dictionary-based compression algorithm:</p>
+<ol>
+<li>The dictionary construction stage: In this stage the algorithm finds phrases and codewords.</li>
+<li>The parsing stage: In this stage the phrases are replaced by codewords.<sup id="fnref:7"><a href="#fn:7" class="footnote-ref" role="doc-noteref">7</a></sup></li>
+</ol>
+<p>There are <strong>static dictionary codes</strong> and <strong>dynamic/adaptive dictionary codes</strong>.
+<strong>Static</strong> dictionaries are created before the input processing and stay the same for the complete run, while <strong>dynamic</strong> dictionaries are updated during parsing which means that in this case the two stages (dictionary construction and parsing) are interleaved.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>
+After these rather theoretical basics about dictionary-based compression, we will now dive into different LZ-family algorithms to explain these things on a few examples.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h3 id="lz-family">
+        LZ family
+    </h3>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lz-family" class="gblog-post__anchor clip flex align-center" aria-label="Anchor LZ family" href="#lz-family">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>These algorithms are named after their creators Abraham Lempel and Jacob Ziv and are some of the most known dictionary compression methods.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>
+The algorithms we will go into detail about are LZ77 and LZ78, which are the two original algorithms developed by Lempel and Ziv, as well as a few of their variants.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h3 id="lz77-and-its-variants">
+        LZ77 and its variants
+    </h3>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lz77-and-its-variants" class="gblog-post__anchor clip flex align-center" aria-label="Anchor LZ77 and its variants" href="#lz77-and-its-variants">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>LZ77 assumes and exploits that data is most likely to be repeated.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>
+The principle is to use a part of the previously-seen input stream as the dictionary.
+Thus the input is analyzed through a sliding window:</p>
+<div align="center">
+  <figure>
+    <img src="lz77-sliding-window-salomon.png" alt="LZ77 Sliding Window Salomon">
+    <figcaption>This example is taken from page 176 of Salomon's book "Data Compression: The Complete Reference".<sup>3</sup></figcaption>
+  </figure>
+</div>
+<p>As seen in the figure above, the window is divided in two parts:</p>
+<ul>
+<li>The search buffer: The current dictionary which includes symbols that have previously been input and encoded.</li>
+<li>The look-ahead buffer which contains data yet to be encoded.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup> When a word is repeated, it can be replaced by a pointer to the last occurrence accompanied by the number of matched characters.<sup id="fnref:8"><a href="#fn:8" class="footnote-ref" role="doc-noteref">8</a></sup></li>
+</ul>
+<p>I will explain this further on the example shown in the image above:</p>
+<ul>
+<li>The encoder scans the search buffer from <strong>right to left</strong>.</li>
+<li>It looks for a match in the dictionary (search buffer) for the first symbol <strong>e</strong> which is in the front of the look-ahead buffer.</li>
+<li>It finds an <strong>e</strong> in &ldquo;<strong>easily</strong>&rdquo; at a distance of <strong>8</strong> from the end of the search buffer (you have to count from right to left, distance of 1 would be the symbol left of the currently selected symbol).</li>
+<li>The encoder then matches as many symbols following those 2 e&rsquo;s as possible which are in this case the 3 symbols &ldquo;<strong>eas</strong>&rdquo;.</li>
+<li>The length of the match is therefore <strong>3</strong>.</li>
+<li>The encoder then continues its backward scan to find a longer match.</li>
+<li>In this case there is no longer match, but a same length match in &ldquo;<strong>eastman</strong>&rdquo;.</li>
+</ul>
+<p>Generally, the encoder selects the longest match or the last one found and prepares the token.
+Why does it use the last one found?
+The answer is quite simple: The algorithm then doesn&rsquo;t have to keep track of all found matches and can save memory space.
+In practical implementations the search buffer is some thousands of bytes long whereas the look-ahead buffer is some tens of bytes long.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup></p>
+<p><strong>Here you can see what the first 5 steps and tokens look like for the example in the image above:</strong><sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup></p>
+<div class=table-wrap> <table>
+<thead>
+<tr>
+<th style="text-align:right">Search Buffer</th>
+<th style="text-align:left">Look-Ahead Buffer</th>
+<th style="text-align:center">Token</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right"></td>
+<td style="text-align:left">sir_sid_eastman_</td>
+<td style="text-align:center">(0,0,&ldquo;s&rdquo;)</td>
+</tr>
+<tr>
+<td style="text-align:right">s</td>
+<td style="text-align:left">ir_sid_eastman_e</td>
+<td style="text-align:center">(0,0,&ldquo;i&rdquo;)</td>
+</tr>
+<tr>
+<td style="text-align:right">si</td>
+<td style="text-align:left">r_sid_eastman_ea</td>
+<td style="text-align:center">(0,0,&ldquo;r&rdquo;)</td>
+</tr>
+<tr>
+<td style="text-align:right">sir</td>
+<td style="text-align:left">_sid_eastman_eas</td>
+<td style="text-align:center">(0,0,&quot;_&quot;)</td>
+</tr>
+<tr>
+<td style="text-align:right">sir_</td>
+<td style="text-align:left">sid_eastman_easi</td>
+<td style="text-align:center">(4,2,&ldquo;d&rdquo;)</td>
+</tr>
+</tbody>
+</table> </div>
+<p>The token always consists of 3 elements:</p>
+<ul>
+<li>The first element is the distance of the found match. If there is no match, this element is 0.</li>
+<li>The second element is the length of the found match. If there is no match, this is again 0.</li>
+<li>The third and last element is the new symbol which is to be appended.</li>
+</ul>
+<p>This approach is suffix-complete, meaning that any suffix of a phrase is a phrase itself. So if the phrase &ldquo;cold&rdquo; is in the dictionary, so are &ldquo;old&rdquo;, &ldquo;ld&rdquo; and &ldquo;d&rdquo;.
+The performance of this algorithm is limited by the number of comparisons needed for finding a matching pattern.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>
+While the encoder is a bit more complicated, the decoder is rather simple meaning that LZ77 and its variants are useful in cases where data has to be compressed once but decompressed very often.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup></p>
+<hr>
+<p>Let&rsquo;s try to decode some data compressed by LZ77:
+The 3 tokens (from left <em>[first]</em> to right <em>[last]</em>) are: (0,0,&ldquo;y&rdquo;), (0,0,&ldquo;a&rdquo;) and
+(2,1,&quot;!&quot;).</p>
+<details style="cursor: pointer;">
+<summary><i>Click to show a tip.</i></summary>
+<p>You have to "fill up" a buffer from right to left, using one token at a time and "pushing" the entries one space to the left in every step.</p>
+</details>
+<details style="cursor: pointer;">
+<summary>Did you find out the decoded text? <i>Click to show the solution.</i></summary>
+<p>yay!</p>
+</details>
+<hr>
+<p>Let&rsquo;s have a short look at a few <strong>LZ77 variants</strong>:</p>
+<p>(Please note that this part is just a small overview and does not fully explain
+how these variants work since that would go beyond the scope of this article.)</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h4 id="lzss">
+        LZSS
+    </h4>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lzss" class="gblog-post__anchor clip flex align-center" aria-label="Anchor LZSS" href="#lzss">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>This derivative algorithm was developed by Storer and Szymanski.
+The look-ahead buffer is in this case improved by storing it in a circular queue and the algorithm holds the search buffer in a binary search tree.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>
+Because of that, the tokens have only 2 fields instead of 3.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup></p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h4 id="deflate">
+        DEFLATE
+    </h4>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#deflate" class="gblog-post__anchor clip flex align-center" aria-label="Anchor DEFLATE" href="#deflate">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>This algorithm &ndash; developed by Philip Katz &ndash; was originally used in Zip and Gzip software and has been adopted by many applications including HTTP and PNG.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>
+It is based on LZSS, but uses a chained hash table to find duplicates.
+The matched lengths and distances are further compressed with two Huffman trees.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup></p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h4 id="lzma">
+        LZMA
+    </h4>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lzma" class="gblog-post__anchor clip flex align-center" aria-label="Anchor LZMA" href="#lzma">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>The last LZ77 variant of this short overview is the Lempel-Ziv-Markov chain-Algorithm which is the default compression algorithm of 7-zip.
+Its principle is similar to that of DEFLATE but it doesn&rsquo;t use Huffman coding and instead uses range encoding which is an integer-based version of arithmetic coding (an entropy-based compression algorithm).
+This does complicate the encoder but also results in better compression.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup></p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h3 id="lz78-and-its-variants">
+        LZ78 and its variants
+    </h3>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lz78-and-its-variants" class="gblog-post__anchor clip flex align-center" aria-label="Anchor LZ78 and its variants" href="#lz78-and-its-variants">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>LZ78 constructs its dictionary differently than LZ77 and does therefore not use any search buffer, look-ahead buffer or sliding window.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>
+Compared to LZ77&rsquo;s three-field tokens the LZ78 encoder outputs two-field tokens which each consist of a pointer to the dictionary and the code of a symbol.
+Since the length of the phrases are implied in the dictionary, it doesn&rsquo;t need to be part of the token.</p>
+<p>Each token corresponds to a phrase of input symbols.
+That phrase is added to the dictionary after the token is written on the compressed stream.
+The size of LZ78&rsquo;s dictionary is only limited by the amount of available memory, because unlike in LZ77 nothing is ever deleted from the dictionary in LZ78.
+On the one hand, this can be an advantage since future pharses can be compressed by dictionary phrases which occured a lot earlier.
+On the other hand, this can also be a disadvantage because the dictionary tends to grow fast and can fill up the entire available memory.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup></p>
+<p>The LZ78 algorithm begins with a single symbol entry in its dictionary, which is the null string at position zero.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup> <sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>
+Then it concatenates the first symbol of the following input after every parsing step.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup></p>
+<p>Let&rsquo;s try to further understand the algorithm by going through an example:
+We want to compress the input <code>a_b_a</code>.
+The current state could be displayed like this:</p>
+<div class=table-wrap> <table>
+  <tr>
+    <th></th>
+    <th scope="col">Dictionary</th>
+    <th scope="col">Token</th>
+  </tr>
+  <tr>
+    <td>0</td>
+    <td>null</td>
+    <td></td>
+  </tr>
+</table> </div>
+<p>As previously mentioned the algorithm starts with the null pointer as the dictionary&rsquo;s entry at position 0.</p>
+<p>At first the dictionary is searched for &ldquo;a&rdquo;.
+If &ldquo;a&rdquo; is not found, the algorithm adds &ldquo;a&rdquo; to the dictionary at position 1 and outputs the token (0, &ldquo;a&rdquo;) since &ldquo;a&rdquo; is the concatenation of the null string and the symbol &ldquo;a&rdquo;.</p>
+<p>a<code>_b_a</code></p>
+<div class=table-wrap> <table>
+  <tr>
+    <th></th>
+    <th scope="col">Dictionary</th>
+    <th scope="col">Token</th>
+  </tr>
+  <tr>
+    <td>0</td>
+    <td>null</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td>"a"</td>
+    <td>(0, "a")</td>
+  </tr>
+</table> </div>
+<p>Now the dictionary is searched for &ldquo;_&rdquo;, since this symbol is also not yet part of the dictionary, it is added analogously to position 2 and the output token is (0, &ldquo;_&quot;).
+This then happens again for &ldquo;b&rdquo; at position 3.</p>
+<p>a_b<code>_a</code></p>
+<div class=table-wrap> <table>
+  <tr>
+    <th></th>
+    <th scope="col">Dictionary</th>
+    <th scope="col">Token</th>
+  </tr>
+  <tr>
+    <td>0</td>
+    <td>null</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td>"a"</td>
+    <td>(0, "a")</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>"_"</td>
+    <td>(0, "_")</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>"b"</td>
+    <td>(0, "b")</td>
+  </tr>
+</table> </div>
+<p>Now that the first 3 symbols of our input <code>a_b_a</code> are put in the dictionary, the encoder finds a dictionary entry for the next symbol &ldquo;_&rdquo;, but not for &ldquo;_a&rdquo; and therefore adds &ldquo;_a&rdquo; to the dictionary at position 4 and the output token is (2, &ldquo;a&rdquo;), because 2 is the position of &ldquo;_&rdquo;.</p>
+<p>a_b_a</p>
+<div class=table-wrap> <table>
+  <tr>
+    <th></th>
+    <th scope="col">Dictionary</th>
+    <th scope="col">Token</th>
+  </tr>
+  <tr>
+    <td>0</td>
+    <td>null</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td>"a"</td>
+    <td>(0, "a")</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>"_"</td>
+    <td>(0, "_")</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>"b"</td>
+    <td>(0, "b")</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>"_a"</td>
+    <td>(2, "a")</td>
+  </tr>
+</table> </div>
+<p>This is another longer example taken from Salomon&rsquo;s &ldquo;Data Compression: The Complete Reference&rdquo;<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>:
+It shows the first 14 steps for this string which is to be compressed: <code>sir_sid_eastman_easily_teases_sea_sick_seals</code></p>
+<div class=table-wrap> <table>
+  <tr>
+    <th></th>
+    <th scope="col">Dictionary</th>
+    <th scope="col">Token</th>
+  </tr>
+  <tr>
+    <td>0</td>
+    <td>null</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td>"s"</td>
+    <td>(0, "s")</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>"i"</td>
+    <td>(0, "i")</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>"r"</td>
+    <td>(0, "r")</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>"_"</td>
+    <td>(0, "_")</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>"si"</td>
+    <td>(1, "i")</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td>"d"</td>
+    <td>(0, "d")</td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td>"_e"</td>
+    <td>(4, "e")</td>
+  </tr>
+  <tr>
+    <td>8</td>
+    <td>"a"</td>
+    <td>(0, "a")</td>
+  </tr>
+  <tr>
+    <td>9</td>
+    <td>"st"</td>
+    <td>(1, "t")</td>
+  </tr>
+  <tr>
+    <td>10</td>
+    <td>"m"</td>
+    <td>(0, "m")</td>
+  </tr>
+  <tr>
+    <td>11</td>
+    <td>"an"</td>
+    <td>(8, "n")</td>
+  </tr>
+  <tr>
+    <td>12</td>
+    <td>"_ea"</td>
+    <td>(7, "a")</td>
+  </tr>
+  <tr>
+    <td>13</td>
+    <td>"sil"</td>
+    <td>(5, "l")</td>
+  </tr>
+  <tr>
+    <td>14</td>
+    <td>"y"</td>
+    <td>(0, "y")</td>
+  </tr>
+</table> </div>
+<p>So let us go through the procedure of LZ78 again quickly:
+Generally, the current symbol is read and becomes a one-symbol phrase.
+Then the encoder tries to find it in the dictionary.
+If the symbol is found in the dictionary, the next symbol is read and concatenated to the first symbol and then this two-symbol phrase is being searched for in the dictionary.
+As long as those phrases are found the process repeats.
+At some point the phrase is not found in the dictionary and thus added to it, while the output is a token consisting of the last dictionary match and the last symbol of the phrase which could not be found in the search.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup></p>
+<p>This approach is called greedy parsing because the longest phrase with a prefix match is replaced by a codeword.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>
+Therefore, LZ78 is prefix-complete, meaning any prefix of a phrase is a phrase itself.
+So if &ldquo;hello&rdquo; is part of the dictionary, so are &ldquo;hell&rdquo;, &ldquo;hel&rdquo;, &ldquo;he&rdquo; and &ldquo;h&rdquo;.</p>
+<p>Since we&rsquo;ve now gone through the base algorithm, let us have a look at variants of LZ78.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h4 id="lzw">
+        LZW
+    </h4>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lzw" class="gblog-post__anchor clip flex align-center" aria-label="Anchor LZW" href="#lzw">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>This variant was developed by Terry Welch.
+Its main feature is that it eliminates the second field of a token.
+The LZW token consists only of a pointer to the dictionary.
+This is possible because the dictionary is initialized with all the symbols in the alphabet.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>
+The GIF encoding algorithm is based on LZW.<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup></p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h4 id="lzmw">
+        LZMW
+    </h4>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lzmw" class="gblog-post__anchor clip flex align-center" aria-label="Anchor LZMW" href="#lzmw">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>The second variant we will shortly mention is LZMW which was developed by V. Miller and M. Wegman.
+It is based on two principles:</p>
+<ul>
+<li>When the dictionary is full, the least-recently-used dictionary phrase is deleted.</li>
+<li>Each phrase which is added to the dictionary is a concatenation of two phrases. This means that a dictionary phrase can grow by more than one symbol at a time (unlike in the base LZ78 algorithm).</li>
+</ul>
+<p>A drawback of this implementation is that it complicates the choice of the data structure for the dictionary because the principles of LZMW lead to a non-prefix-complete dictionary and because a phrase may be added twice due to the deletion of the least-recently-used dictionary phrase if the dictionary is full.<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup></p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="limitations-of-lossless-data-compression">
+        Limitations of lossless data compression
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#limitations-of-lossless-data-compression" class="gblog-post__anchor clip flex align-center" aria-label="Anchor Limitations of lossless data compression" href="#limitations-of-lossless-data-compression">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>After all these different algorithms, there is one last topic to cover:
+The limitations of lossless data compression.
+Generally, there are of course many more lossless compression algorithms, some of which are very specialised for a specific area like image or audio compression.
+These algorithms could perform badly if they would be used outside of their designated area.
+Which brings us to the question if a perfect compression algorithm could exist.
+Perfect in this case meaning that the compressed file will <em><strong>always</strong></em> be smaller than the original file.</p>
+<p>We can find this out by using a counting argument, the pigeonhole principle.<sup id="fnref:9"><a href="#fn:9" class="footnote-ref" role="doc-noteref">9</a></sup>
+The pigeonhole principle states that if <strong>n items</strong> are put into <strong>m containers</strong> while <strong>n is greather than m</strong>, then <strong>at least one container</strong> must contain <strong>more than one item</strong> (n and m are natural numbers).<sup id="fnref:10"><a href="#fn:10" class="footnote-ref" role="doc-noteref">10</a></sup>
+So if we consider that there are 10 pigeons but only 9 holes, at least one hole must contain more than one pigeon.</p>
+<div align="center">
+  <figure style="max-width: 50%;">
+    <img src="TooManyPigeons.jpg" alt="Pigeon_Hole_Principle_Image">
+    <figcaption>
+      <a href="https://commons.wikimedia.org/wiki/File:TooManyPigeons.jpg">
+      Pigeons-in-holes.jpg by en:User:BenFrantzDale; this image by en:User:McKay</a>,
+      <a href="http://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a>,
+      via Wikimedia Commons
+    </figcaption>
+  </figure>
+</div>
+<p>Let&rsquo;s go through this proof from a Stanford University lecture<sup id="fnref:11"><a href="#fn:11" class="footnote-ref" role="doc-noteref">11</a></sup>:
+We already know that in lossless data compression, we have compression function C and a decompression function D.
+To ensure that we can uniquely encode or decode a bitstring, these functions must be the inverses of each other:
+
+
+
+
+<span class="gblog-katex ">
+  \(D(C(x)) = x\)</span>.
+This means that C must be injective.</p>
+<div align= "center">
+  <figure style="max-width: 200px; text-align: center;">
+    <img src="injection.png" alt="Injective Function" style="mix-blend-mode: difference;">
+    <figcaption>An injective function is a function, where distinct inputs map to distinct outputs.</figcaption>
+  </figure>
+</div>
+<p>Ideally, the compressed version of a bitstring would always be shorter than the input bitstring.</p>
+<p>Let 
+
+
+
+<span class="gblog-katex ">
+  \(B^n\)</span> be the set of bitstrings of length n and 
+
+
+
+<span class="gblog-katex ">
+  \(B^{&lt;n}\)</span> be the set of bitstrings of length less than n.
+There are 
+
+
+
+<span class="gblog-katex ">
+  \(2^n\)</span> bitstrings of length n and there are 
+
+
+
+<span class="gblog-katex ">
+  \(2^0 &#43; 2^1 &#43; ... &#43; 2^{n-1} = 2^n - 1\)</span> bitstrings of length less than n.
+Since 
+
+
+
+<span class="gblog-katex ">
+  \(B^{&lt;n}\)</span> has less elements than 
+
+
+
+<span class="gblog-katex ">
+  \(B^n\)</span>, there cannot be an injection from 
+
+
+
+<span class="gblog-katex ">
+  \(B^n\)</span> to 
+
+
+
+<span class="gblog-katex ">
+  \(B^{&lt;n}\)</span>.</p>
+<p>And because a perfect compression function would have to be an injection from 
+
+
+
+<span class="gblog-katex ">
+  \(B^n\)</span> to 
+
+
+
+<span class="gblog-katex ">
+  \(B^{&lt;n}\)</span>, there is no perfect compression function and every lossless compression function will produce a larger output file given certain input data, to ensure that the produced output file is unique.
+Otherwise we would have a lossy compression.<sup id="fnref:11"><a href="#fn:11" class="footnote-ref" role="doc-noteref">11</a></sup></p>
+<p>This means that for every lossless data compression algorithm there is input data which cannot be compressed.
+Therefore, a check if the compressed file is in fact smaller than input file is necessary.
+Furthermore, it is always useful to know what kind of data is to be compressed, so the algorithm can be chosen based on this information.</p>
+<div class="gblog-post__anchorwrap flex align-center">
+    <h2 id="further-reading">
+        Further reading
+    </h2>
+    <a data-clipboard-text="https://blog.parcio.de/posts/2022/05/lossless-data-compression/#further-reading" class="gblog-post__anchor clip flex align-center" aria-label="Anchor Further reading" href="#further-reading">
+        <svg class="gblog-icon gblog_link"><use xlink:href="#gblog_link"></use></svg>
+    </a>
+</div>
+<p>I hope this article provided a good overview of some of the most common algorithms in lossless data compression and maybe even sparked your interest in data compression.
+This article did not nearly exhaust the topics covered in the sources it used.
+Especially &ldquo;Data Compression: The Complete Reference&rdquo;<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup> is a book which explains a lot of different data compression algorithms quite thoroughly.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>Sayood, K. (2006). Introduction to Data Compression. Third Edition. p. 1-5.&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:2" role="doc-endnote">
+<p>Run-length encoding. <a
+  class="gblog-markdown__link"
+  href="https://en.wikipedia.org/wiki/Run-length_encoding"
+  
+>https://en.wikipedia.org/wiki/Run-length_encoding</a>. Accessed on: 2021-11-02.&#160;<a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:3" role="doc-endnote">
+<p>Salomon, D. (2007) Data Compression: The Complete Reference. Fourth Edition. p. 47-51, 74, 174-179, 189-190, 199, 209-210, 230, 242-243.&#160;<a href="#fnref:3" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:4" role="doc-endnote">
+<p>Duwe, K., Lüttgau, J., Mania, G., Squar, J., Fuchs, A., Kuhn, M., Betke, E., &amp; Ludwig, T. (2020). State of the Art and Future Trends in Data Reduction for High-Performance Computing. Supercomputing Frontiers and Innovations, 7(1), p. 4–36. <a
+  class="gblog-markdown__link"
+  href="https://doi.org/10.14529/jsfi200101"
+  
+>https://doi.org/10.14529/jsfi200101</a>&#160;<a href="#fnref:4" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:5" role="doc-endnote">
+<p>Lu,  Z.M.,  Guo,  S.Z.: Chapter  1  -  Introduction.  In:  Lu,  Z.M.,  Guo,  S.Z.  (eds.)  Lossless Information Hiding in Images, pp. 1–68. Syngress (2017), DOI: 10.1016/B978-0-12-812006-4.00001-2&#160;<a href="#fnref:5" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:6" role="doc-endnote">
+<p>Tönnies, K. (2005). Grundlagen der Bildverarbeitung. Chapter 6 - Bildkompression. p. 136.&#160;<a href="#fnref:6" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:7" role="doc-endnote">
+<p>Sahinalp, S.C., Rajpoot, N.M.: Chapter 6 - Dictionary-Based Data Compression: An Algorithmic Perspective. In: Sayood, K. (ed.) Lossless Compression Handbook, pp. 153–167. Communications, Networking and Multimedia, Academic Press, San Diego (2003),DOI: 10.1016/B978-012620861-0/50007-3&#160;<a href="#fnref:7" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:8" role="doc-endnote">
+<p>Shanmugasundaram, S. , Lourdusamy, R. (2011). A Comparative Study Of Text Compression Algorithms. ICTACT Journal on Communication Technology 1(3), p. 68–76.&#160;<a href="#fnref:8" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:9" role="doc-endnote">
+<p>Lossless Compression. <a
+  class="gblog-markdown__link"
+  href="https://en.wikipedia.org/wiki/Lossless_compression"
+  
+>https://en.wikipedia.org/wiki/Lossless_compression</a>. Accessed on 2021-11-04.&#160;<a href="#fnref:9" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:10" role="doc-endnote">
+<p>Pigeonhole Principle. <a
+  class="gblog-markdown__link"
+  href="https://en.wikipedia.org/wiki/Pigeonhole_principle"
+  
+>https://en.wikipedia.org/wiki/Pigeonhole_principle</a>. Accessed on 2021-11-04.&#160;<a href="#fnref:10" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:11" role="doc-endnote">
+<p>The Pigeonhole Principle. <a
+  class="gblog-markdown__link"
+  href="https://web.stanford.edu/class/archive/cs/cs103/cs103.1132/lectures/08/Small08.pdf"
+  
+>https://web.stanford.edu/class/archive/cs/cs103/cs103.1132/lectures/08/Small08.pdf</a>. Accessed on: 2021-11-04&#160;<a href="#fnref:11" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+    </section>
+  </article>
+
+      </main>
+
+      <footer class="gblog-footer">
+  <nav class="container flex">
+    <div>
+      <section class="flex flex-wrap align-center">
+        
+          <span class="gblog-footer__item gblog-footer__item--row">
+            <svg class="gblog-icon gblog_rss_feed"><use xlink:href="#gblog_rss_feed"></use></svg>
+            <a href="/feed.xml" class="gblog-footer__link">Atom Feed</a>
+          </span>
+        
+        
+          
+
+  
+  
+  
+
+  
+    
+      
+      
+      
+
+      
+        <span class="gblog-footer__item gblog-footer__item--row">
+          
+            <svg class="gblog-icon gblog_email"><use xlink:href="#gblog_email"></use></svg>
+          
+          <a
+            href="https://parcio.ovgu.de/Imprint.html"
+            class="gblog-footer__link"
+          >
+            Imprint
+          </a>
+        </span>
+      
+    
+  
+    
+      
+      
+      
+
+      
+        <span class="gblog-footer__item gblog-footer__item--row">
+          
+            <svg class="gblog-icon gblog_email"><use xlink:href="#gblog_email"></use></svg>
+          
+          <a
+            href="https://parcio.ovgu.de/Contact.html"
+            class="gblog-footer__link"
+          >
+            Contact
+          </a>
+        </span>
+      
+    
+  
+
+
+
+
+
+
+        
+        
+        
+      </section>
+      <section class="flex flex-wrap align-center">
+        <span class="gblog-footer__item">
+          Built with <a href="https://gohugo.io/" class="gblog-footer__link">Hugo</a> and
+          <svg class="gblog-icon gblog_heart"><use xlink:href="#gblog_heart"></use></svg>
+        </span>
+      </section>
+      
+        <section class="flex flex-wrap align-center">
+          <span class="gblog-footer__item">
+            Hosted on <a href="https://pages.github.com/" class="gblog-footer__link">GitHub Pages</a>
+          </span>
+        </section>
+      
+      
+        <section class="flex flex-wrap align-center">
+          <span class="gblog-footer__item">
+            Content licensed under
+            <a href="https://creativecommons.org/licenses/by-sa/4.0/" class="gblog-footer__link no-wrap">CC BY-SA 4.0</a>
+          </span>
+        </section>
+      
+    </div>
+    
+      <div class="flex flex-25 justify-end">
+        <span class="gblog-footer__item text-right">
+          <a class="gblog-footer__link fake-link" href="#" aria-label="Back to top">
+            <svg class="gblog-icon gblog_keyboard_arrow_up">
+              <use xlink:href="#gblog_keyboard_arrow_up"></use>
+            </svg>
+            <span class="hidden-mobile">Back to top</span>
+          </a>
+        </span>
+      </div>
+    
+  </nav>
+</footer>
+
+    </div>
+  </body>
+</html>

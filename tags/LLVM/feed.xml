@@ -1,0 +1,939 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <generator uri="https://gohugo.io/" version="0.92.2">Hugo</generator>
+    <title>Llvm on Parallel Computing and I/O Blog</title>
+        <subtitle>We conduct research and development on parallel systems</subtitle>
+            <link href="https://blog.parcio.de/tags/LLVM/" rel="alternate" type="text/html" title="HTML" />
+            <link href="https://blog.parcio.de/tags/LLVM/feed.xml" rel="self" type="application/atom+xml" title="Atom" />
+    <updated>2022-07-20T18:39:34+00:00</updated>
+    <id>https://blog.parcio.de/tags/LLVM/</id>
+        <entry>
+            <title>Clang/LLVM overview</title>
+            <link href="https://blog.parcio.de/posts/2022/07/clang-llvm-overview/" rel="alternate" type="text/html"  hreflang="en" />
+            <id>https://blog.parcio.de/posts/2022/07/clang-llvm-overview/</id>
+                    <author>
+                        <name>Hannes Winkler</name>
+                    </author>
+            <published>2022-07-04T00:00:00+00:00</published>
+            <updated>2022-07-04T00:00:00+00:00</updated>
+            <content type="html">
+                &lt;p&gt;Compilers are complex programs with complex requirements.
+The two most widespread C compilers, GCC and Clang/LLVM, are &lt;strong&gt;10&amp;ndash;15 million&lt;/strong&gt; lines of code behemoths, designed to produce optimal machine code for whatever arbitrary target the user desires.
+In this blog post I&amp;rsquo;m going to give an overview of how the Clang/LLVM C compiler works; from processing the source code to writing native binaries.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h1 id=&#34;1-introduction&#34;&gt;
+        1. Introduction
+    &lt;/h1&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#1-introduction&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 1. Introduction&#34; href=&#34;#1-introduction&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;First of all, what is a compiler?&lt;/p&gt;
+&lt;p&gt;A computer (or CPU, rather) executes binary &lt;strong&gt;machine code&lt;/strong&gt;.
+The human-readable form of machine code is called &lt;strong&gt;assembly code&lt;/strong&gt;.
+However, assembly code is very low-level and very unnatural to write for humans.
+So we write our programs in higher-level programming languages like &lt;em&gt;C&lt;/em&gt;, &lt;em&gt;C++&lt;/em&gt;, &lt;em&gt;Rust&lt;/em&gt;, etc. instead and let a compiler translate that source code into machine code.&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  &lt;div class=&#34;flex justify-center&#34;&gt;
+    &lt;figure class=&#34;gblog-post__figure&#34;&gt;
+      &lt;a class=&#34;gblog-markdown__link--raw&#34; href=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compiler-terminology.png&#34;&gt;
+        &lt;picture&gt;
+          &lt;source
+            
+              srcset=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compiler-terminology_huce7e72b373dc32be6682a8c9068de3e7_41292_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compiler-terminology_huce7e72b373dc32be6682a8c9068de3e7_41292_1200x0_resize_box_3.png 1200w&#34; sizes=&#34;100vw&#34;
+            
+          /&gt;
+          &lt;img
+            loading=&#34;lazy&#34;
+            src=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compiler-terminology_huce7e72b373dc32be6682a8c9068de3e7_41292_1800x0_resize_box_3.png&#34;
+            alt=&#34;Compiler terminology&#34;
+          /&gt;
+        &lt;/picture&gt;
+      &lt;/a&gt;
+      
+        &lt;figcaption&gt;
+          Compiler terminology (&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://cs.lmu.edu/~ray/images/staticcompilation.png&#34;
+  
+&gt;Ray Toal, Intro to Compilers&lt;/a&gt; (edited) (License: unknown))
+        &lt;/figcaption&gt;
+      
+    &lt;/figure&gt;
+  &lt;/div&gt;
+
+
+
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  &lt;div class=&#34;flex justify-center&#34;&gt;
+    &lt;figure class=&#34;gblog-post__figure&#34;&gt;
+      &lt;a class=&#34;gblog-markdown__link--raw&#34; href=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compilation-example.png&#34;&gt;
+        &lt;picture&gt;
+          &lt;source
+            
+              srcset=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compilation-example_hu3d5862152994eb6732f4cf05fbb2ce2f_28947_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compilation-example_hu3d5862152994eb6732f4cf05fbb2ce2f_28947_1200x0_resize_box_3.png 1200w&#34; sizes=&#34;100vw&#34;
+            
+          /&gt;
+          &lt;img
+            loading=&#34;lazy&#34;
+            src=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/compilation-example_hu3d5862152994eb6732f4cf05fbb2ce2f_28947_1800x0_resize_box_3.png&#34;
+            alt=&#34;Example compilation (C source code to x86-64 assembly)&#34;
+          /&gt;
+        &lt;/picture&gt;
+      &lt;/a&gt;
+      
+        &lt;figcaption&gt;
+          Example compilation (C source code to x86-64 assembly)
+        &lt;/figcaption&gt;
+      
+    &lt;/figure&gt;
+  &lt;/div&gt;
+
+&lt;/p&gt;
+&lt;p&gt;There are many more compilers than GCC and Clang, for a wide variety of programming languages.&lt;/p&gt;
+&lt;p&gt;One can distinguish between two kinds of compilers:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;AOT (ahead-of-time) compilers.&lt;/strong&gt;
+These are compilers where all of the source code is compiled to target code before the program is run.
+Basically, every C/C++ compiler is an AOT compiler for example.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;JIT (just-in-time) compilers.&lt;/strong&gt;
+JIT compilers compile code even &lt;em&gt;while&lt;/em&gt; the program is running.
+Examples: &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://v8.dev/&#34;
+  
+&gt;Chromium&amp;rsquo;s JavaScript engine&lt;/a&gt;, &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://dart.dev/overview&#34;
+  
+&gt;Dart&lt;/a&gt;, &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://luajit.org/&#34;
+  
+&gt;LuaJIT&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;At first, this sounds like JIT is a lot slower than AOT compilation but that&amp;rsquo;s not necessarily true.
+JIT compilers have more information about the machine/CPU they&amp;rsquo;re targetting and can take that into account when compiling.
+AOT compilers, on the other hand, mostly produce code for the &amp;ldquo;lowest common denominator&amp;rdquo;&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;, if you don&amp;rsquo;t explicitly tell it for what target it should tune the code.
+So even if you have the very latest Intel 12th generation CPU with the very latest feature set, your compiler will not make use of those features when targetting &amp;ldquo;just any x86-64 machine&amp;rdquo;.&lt;/p&gt;
+&lt;p&gt;Additionally, JIT compilers have more information about the runtime behaviour of the program.
+For example, if the JIT compilers sees &amp;ldquo;oh, this function is only called with an integer argument greater than 128&amp;rdquo;, it can use that to optimize the function.
+An AOT compiler can deduce some information too, but in most cases that information is just very hard to find out without running the program.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h1 id=&#34;2-overview-of-the-clangllvm-pipeline&#34;&gt;
+        2. Overview of the Clang/LLVM pipeline
+    &lt;/h1&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#2-overview-of-the-clangllvm-pipeline&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 2. Overview of the Clang/LLVM pipeline&#34; href=&#34;#2-overview-of-the-clangllvm-pipeline&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  &lt;div class=&#34;flex justify-center&#34;&gt;
+    &lt;figure class=&#34;gblog-post__figure&#34;&gt;
+      &lt;a class=&#34;gblog-markdown__link--raw&#34; href=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/clang-llvm-pipeline.png&#34;&gt;
+        &lt;picture&gt;
+          &lt;source
+            
+              srcset=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/clang-llvm-pipeline_hu0e8c4ac227e93cbbb96ebb6f87c9a53c_77177_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/clang-llvm-pipeline_hu0e8c4ac227e93cbbb96ebb6f87c9a53c_77177_1200x0_resize_box_3.png 1200w&#34; sizes=&#34;100vw&#34;
+            
+          /&gt;
+          &lt;img
+            loading=&#34;lazy&#34;
+            src=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/clang-llvm-pipeline_hu0e8c4ac227e93cbbb96ebb6f87c9a53c_77177_1800x0_resize_box_3.png&#34;
+            alt=&#34;Clang/LLVM pipeline&#34;
+          /&gt;
+        &lt;/picture&gt;
+      &lt;/a&gt;
+      
+        &lt;figcaption&gt;
+          Clang/LLVM pipeline
+        &lt;/figcaption&gt;
+      
+    &lt;/figure&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;As you can see in the above picture, there&amp;rsquo;s roughly 3 phases of compilation:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Frontend&lt;/strong&gt;
+&lt;ul&gt;
+&lt;li&gt;In this step, all the source code is processed and an intermediate representation (IR) is generated.&lt;/li&gt;
+&lt;li&gt;In our case, &lt;code&gt;Clang&lt;/code&gt; is the frontend and &lt;code&gt;LLVM&lt;/code&gt; is the middle- and backend.&lt;/li&gt;
+&lt;li&gt;There are many LLVM frontends for many programming languages, Clang is just the one for C/C++.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Middle-end&lt;/strong&gt;
+&lt;ul&gt;
+&lt;li&gt;The middle-end is one of the great features of LLVM.
+In this phase, the IR is optimized.
+Overall, most of the optimizations are done here.
+The cool thing is that LLVM IR is completely universal; all frontends produce IR and all backends consume IR.
+That way, if you write an optimization pass for the middle end, it&amp;rsquo;ll work for many languages and many target CPUs.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Backend&lt;/strong&gt;
+&lt;ul&gt;
+&lt;li&gt;The backend will now consume the optimized IR and produce machine code, which (after linking) can be executed on the target machine.
+The backend will also apply some machine specific optimization passes.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;I&amp;rsquo;ll now go a bit more into detail about how these 3 parts work.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h1 id=&#34;3-frontend&#34;&gt;
+        3. Frontend
+    &lt;/h1&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#3-frontend&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 3. Frontend&#34; href=&#34;#3-frontend&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;31-lexer&#34;&gt;
+        3.1. Lexer
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#31-lexer&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 3.1. Lexer&#34; href=&#34;#31-lexer&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;The first thing the frontend does is read the source code character by character and produce so-called &lt;strong&gt;tokens&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;For example, for the following C source code:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-C&#34; data-lang=&#34;C&#34;&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;argc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;char&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;**&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;argv&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;printf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;hello, world!&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;\n&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The list of tokens could look like this:&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;int,
+identifier(“main”),
+lparen,
+int,
+identifier(“argc”),
+comma,
+// and so on ...
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Additionally, each token will also have its source location (that is, its file, line and column) associated with it.&lt;/p&gt;
+&lt;p&gt;In this phase, you basically get rid of all whitespace, comments, and transform the source code into something that can more easily be processed to produce the the abstract syntax tree (AST) and, following that, the IR.&lt;/p&gt;
+&lt;p&gt;The lexer only does very simple recognition of the basic syntactical building blocks of the source code.
+For example, if you forget the terminating &lt;code&gt;&amp;quot;&lt;/code&gt; of a string, the lexer will complain; but not if you use a wrong type or an undefined symbol.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;32-parsersemantic-analyzer&#34;&gt;
+        3.2. Parser/semantic analyzer
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#32-parsersemantic-analyzer&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 3.2. Parser/semantic analyzer&#34; href=&#34;#32-parsersemantic-analyzer&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Using the list of tokens from the previous step, we&amp;rsquo;re now constructing a tree.
+And not just any tree, we&amp;rsquo;re constructing a so-called &lt;strong&gt;abstract syntax tree&lt;/strong&gt; (AST).&lt;/p&gt;
+&lt;p&gt;Basically, we&amp;rsquo;re now recognizing the language structures of the programming language, like definitions, declarations, control flow statements, expressions, type casts, etc.&lt;/p&gt;
+
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  &lt;div class=&#34;flex justify-center&#34;&gt;
+    &lt;figure class=&#34;gblog-post__figure&#34;&gt;
+      &lt;a class=&#34;gblog-markdown__link--raw&#34; href=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/ast-dump.png&#34;&gt;
+        &lt;picture&gt;
+          &lt;source
+            
+              srcset=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/ast-dump_hudada9e4d69bef1f290b8b2db1f73f31c_128419_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/ast-dump_hudada9e4d69bef1f290b8b2db1f73f31c_128419_1200x0_resize_box_3.png 1200w&#34; sizes=&#34;100vw&#34;
+            
+          /&gt;
+          &lt;img
+            loading=&#34;lazy&#34;
+            src=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/ast-dump_hudada9e4d69bef1f290b8b2db1f73f31c_128419_1800x0_resize_box_3.png&#34;
+            alt=&#34;Clang AST dump for the hello world C program&#34;
+          /&gt;
+        &lt;/picture&gt;
+      &lt;/a&gt;
+      
+        &lt;figcaption&gt;
+          Clang AST dump for the hello world C program
+        &lt;/figcaption&gt;
+      
+    &lt;/figure&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;The above image shows the AST for the example C program in &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;#31-lexer&#34;
+  
+&gt;3.1&lt;/a&gt;.
+&lt;code&gt;&amp;lt;invalid sloc&amp;gt;&lt;/code&gt; means &lt;code&gt;invalid source location&lt;/code&gt;.
+The nodes with &lt;code&gt;&amp;lt;invalid sloc&amp;gt;&lt;/code&gt; are &amp;ldquo;imaginary&amp;rdquo;, they don&amp;rsquo;t have any corresponding source location and were added by Clang after the fact.&lt;/p&gt;
+&lt;p&gt;In the AST, we can clearly recognize the structure of the hello world program above by looking at the nodes with valid source locations:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The function declaration &lt;code&gt;int main(int, char **)&lt;/code&gt; and the names of the two arguments, &lt;code&gt;argc&lt;/code&gt; &amp;amp; &lt;code&gt;argv&lt;/code&gt; (&lt;code&gt;FunctionDecl&lt;/code&gt; and &lt;code&gt;ParmVarDecl&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;The compound statement &lt;code&gt;{ ... }&lt;/code&gt; afterwards (&lt;code&gt;CompoundStmt&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;The call to &lt;code&gt;printf&lt;/code&gt; with some implicit casts (&lt;code&gt;CallExpr&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;Finally, the &lt;code&gt;return 0&lt;/code&gt; (&lt;code&gt;ReturnStmt&lt;/code&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h3 id=&#34;ambiguity&#34;&gt;
+        Ambiguity
+    &lt;/h3&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#ambiguity&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Ambiguity&#34; href=&#34;#ambiguity&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;The parser has some predefined rules, like &lt;code&gt;function-declaration = type identifier ( parameter-list ) ...&lt;/code&gt;.
+It tries to match those rules against the tokens and that way Clang will build the AST.
+However, in practice it&amp;rsquo;s not that easy.
+For example, in C there are two ways you can parse &lt;code&gt;a * b&lt;/code&gt;.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Either &lt;code&gt;a&lt;/code&gt; and &lt;code&gt;b&lt;/code&gt; are variables and that expression is a multiplication,&lt;/li&gt;
+&lt;li&gt;or &lt;code&gt;a&lt;/code&gt; is a type name, and &lt;code&gt;a * b&lt;/code&gt; is the declaration of a variable &lt;code&gt;b&lt;/code&gt; with type &lt;code&gt;a*&lt;/code&gt; (pointer to &lt;code&gt;a&lt;/code&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;So to be able to parse this correctly, you need to know beforehand if &lt;code&gt;a&lt;/code&gt; is a type or a variable.
+In C++ it&amp;rsquo;s even more complicated.
+There&amp;rsquo;s a saying that &amp;ldquo;parsing C is hard and parsing C++ is impossible.&amp;rdquo; The C++ grammar is &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://en.wikipedia.org/wiki/Most_vexing_parse&#34;
+  
+&gt;ambiguous&lt;/a&gt;, &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;http://port70.net/~nsz/c/c%2B%2B/turing.pdf&#34;
+  
+&gt;C++ templates are turing complete&lt;/a&gt; and parsing it is &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://blog.reverberate.org/2013/08/parsing-c-is-literally-undecidable.html&#34;
+  
+&gt;literally undecidable&lt;/a&gt;.
+That&amp;rsquo;s one of the reasons why Clang has hand-written parsers for both C and C++.&lt;/p&gt;
+&lt;p&gt;The parser works very closely together with the &lt;strong&gt;semantic analyzer&lt;/strong&gt; (sema).
+The sema will do things like inferring types, adding type casts, doing validity checks or throwing warnings.
+For example, warnings about unused code or infinite self-recursion will be thrown by the sema.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;33-ir-generator&#34;&gt;
+        3.3. IR generator
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#33-ir-generator&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 3.3. IR generator&#34; href=&#34;#33-ir-generator&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;The IR generator will now (surprise!) generate rough, unoptimized &lt;strong&gt;IR&lt;/strong&gt; using the AST from the previous step.&lt;/p&gt;
+&lt;p&gt;LLVM IR is a full-fledged language with well-defined semantics.
+The IR below was generated for the hello world program from Section &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;#31-lexer&#34;
+  
+&gt;3.1&lt;/a&gt;.
+However, I&amp;rsquo;d say its workings are a bit out of scope for this blog post, so I&amp;rsquo;m not going to go into detail here.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-llvm&#34; data-lang=&#34;llvm&#34;&gt;&lt;span class=&#34;vg&#34;&gt;@.str&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;private&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;unnamed_addr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;constant&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;15&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;x&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;hello, world!\0A\00&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;align&lt;/span&gt; &lt;span class=&#34;m&#34;&gt;1&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;define&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;dso_local&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i32&lt;/span&gt; &lt;span class=&#34;vg&#34;&gt;@main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;i32&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;%0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;**&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;%1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;vg&#34;&gt;#0&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;!dbg&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;!8&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;%3&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;alloca&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;align&lt;/span&gt; &lt;span class=&#34;m&#34;&gt;4&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;%4&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;alloca&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;align&lt;/span&gt; &lt;span class=&#34;m&#34;&gt;4&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;%5&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;alloca&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;**,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;align&lt;/span&gt; &lt;span class=&#34;m&#34;&gt;8&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;store&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i32&lt;/span&gt; &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;%3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;align&lt;/span&gt; &lt;span class=&#34;m&#34;&gt;4&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;store&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i32&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;%0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;%4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;align&lt;/span&gt; &lt;span class=&#34;m&#34;&gt;4&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;call&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;vg&#34;&gt;@llvm.dbg.declare&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;metadata&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;%4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;metadata&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;!17&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;metadata&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;!DIExpression&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()),&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;!dbg&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;!18&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;store&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;**&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;%1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;***&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;%5&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;align&lt;/span&gt; &lt;span class=&#34;m&#34;&gt;8&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;call&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;vg&#34;&gt;@llvm.dbg.declare&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;metadata&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;***&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;%5&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;metadata&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;!19&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;metadata&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;!DIExpression&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()),&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;!dbg&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;!20&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;%6&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;call&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i32&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;i8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;*,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;...)&lt;/span&gt; &lt;span class=&#34;vg&#34;&gt;@printf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;i8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;getelementptr&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;inbounds&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;([&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;15&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;x&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;],&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;15&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;x&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]*&lt;/span&gt; &lt;span class=&#34;vg&#34;&gt;@.str&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i64&lt;/span&gt; &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i64&lt;/span&gt; &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)),&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;!dbg&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;!21&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;ret&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i32&lt;/span&gt; &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;!dbg&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;!22&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;declare&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;vg&#34;&gt;@llvm.dbg.declare&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;metadata&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;metadata&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;metadata&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;vg&#34;&gt;#1&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;declare&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;dso_local&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;i32&lt;/span&gt; &lt;span class=&#34;vg&#34;&gt;@printf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;i8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;*,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;...)&lt;/span&gt; &lt;span class=&#34;vg&#34;&gt;#2&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;attributes&lt;/span&gt; &lt;span class=&#34;vg&#34;&gt;#0&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;noinline&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;nounwind&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;optnone&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;uwtable&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;frame-pointer&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;all&amp;#34;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;min-legal-vector-width&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;0&amp;#34;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;no-trapping-math&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;true&amp;#34;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;stack-protector-buffer-size&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;8&amp;#34;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;target-cpu&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;x86-64&amp;#34;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;target-features&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;+cx8,+fxsr,+mmx,+sse,+sse2,+x87&amp;#34;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;tune-cpu&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;generic&amp;#34;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;attributes&lt;/span&gt; &lt;span class=&#34;vg&#34;&gt;#1&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;no&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;free&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;nosyn&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;c&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;nounwind&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;readnone&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;speculatable&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;willreturn&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;attributes&lt;/span&gt; &lt;span class=&#34;vg&#34;&gt;#2&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;frame-pointer&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;all&amp;#34;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;no-trapping-math&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;true&amp;#34;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;stack-protector-buffer-size&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;8&amp;#34;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;target-cpu&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;x86-64&amp;#34;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;target-features&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;+cx8,+fxsr,+mmx,+sse,+sse2,+x87&amp;#34;&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;tune-cpu&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;generic&amp;#34;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h1 id=&#34;4-middle-end&#34;&gt;
+        4. Middle-end
+    &lt;/h1&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#4-middle-end&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 4. Middle-end&#34; href=&#34;#4-middle-end&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Now that we have the IR, we can &lt;strong&gt;optimize&lt;/strong&gt; it.
+What does &amp;ldquo;optimizing&amp;rdquo; even mean, though?
+When we optimize a program, we want to make it &lt;strong&gt;faster&lt;/strong&gt; or &lt;strong&gt;smaller&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;Making it run faster is the usual goal that&amp;rsquo;s achievable for example by combining operations, reducing function calls, resolving recursions, etc.
+Making the finished program binaries smaller is often done in embedded environments, where you don&amp;rsquo;t have too much space available.&lt;/p&gt;
+&lt;p&gt;A single &amp;ldquo;step&amp;rdquo; of optimization is called an &lt;strong&gt;optimization pass&lt;/strong&gt;.
+Usually when employing optimizations, you&amp;rsquo;ll bundle a bunch of these together in a chain.
+The order is important too: Some optimization passes rely on the fact that some other optimization pass has run before them (that maybe annotated the IR with some analysis information), others produce better results when some other optimization pass has run before them.
+But that&amp;rsquo;s mostly opaque to the user, Clang will do the right thing for you when you just use the &lt;code&gt;-O...&lt;/code&gt; commandline argument.&lt;/p&gt;
+&lt;p&gt;There are three kinds of optimization passes:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Analysis passes&lt;/strong&gt;
+&lt;ul&gt;
+&lt;li&gt;Those analyze the IR and try to deduce some information that&amp;rsquo;s useful (or required) for other optimization passes.&lt;/li&gt;
+&lt;li&gt;For example, one analysis pass will deduce information about the call graph, another will find memory dependencies, etc.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Transform passes&lt;/strong&gt;
+&lt;ul&gt;
+&lt;li&gt;Transform passes are what actually optimizes the IR.
+They use the information from the analysis passes to transform the IR in such a way that it&amp;rsquo;s either faster or smaller afterwards.&lt;/li&gt;
+&lt;li&gt;There &lt;code&gt;-inline&lt;/code&gt; transform pass will do function inlining (more on that later), &lt;code&gt;-adce&lt;/code&gt; will eliminate dead code, &lt;code&gt;-instcombine&lt;/code&gt; combines redundant instructions, etc.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Utility passes&lt;/strong&gt;
+&lt;ul&gt;
+&lt;li&gt;These are mostly used for debugging purposes.
+These aren&amp;rsquo;t applied by Clang by default, only if you explicitly tell it to.&lt;/li&gt;
+&lt;li&gt;For example, the &lt;code&gt;-view-cfg&lt;/code&gt; pass will use Graphviz to visualize the control flow graph.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  &lt;div class=&#34;flex justify-center&#34;&gt;
+    &lt;figure class=&#34;gblog-post__figure&#34;&gt;
+      &lt;a class=&#34;gblog-markdown__link--raw&#34; href=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/optimization-passes.png&#34;&gt;
+        &lt;picture&gt;
+          &lt;source
+            
+              srcset=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/optimization-passes_hua6c2e01a3ad55be301e16155216e0d4e_37763_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/optimization-passes_hua6c2e01a3ad55be301e16155216e0d4e_37763_1200x0_resize_box_3.png 1200w&#34; sizes=&#34;100vw&#34;
+            
+          /&gt;
+          &lt;img
+            loading=&#34;lazy&#34;
+            src=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/optimization-passes_hua6c2e01a3ad55be301e16155216e0d4e_37763_1800x0_resize_box_3.png&#34;
+            alt=&#34;Pie chart of the optimization passes of LLVM&#34;
+          /&gt;
+        &lt;/picture&gt;
+      &lt;/a&gt;
+      
+        &lt;figcaption&gt;
+          Pie chart of the optimization passes of LLVM (Based on &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://llvm.org/docs/Passes.html&#34;
+  
+&gt;https://llvm.org/docs/Passes.html&lt;/a&gt; (fetched on 2021-11-05))
+        &lt;/figcaption&gt;
+      
+    &lt;/figure&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;To use these optimizations, you can just use the &lt;code&gt;-O...&lt;/code&gt; commandline argument for Clang.&lt;/p&gt;
+&lt;p&gt;For example:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-shell&#34; data-lang=&#34;shell&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# no optimizations at all (default)&lt;/span&gt;
+$ clang -O0 main.c
+&lt;span class=&#34;c1&#34;&gt;# optimize for speed&lt;/span&gt;
+$ clang -O1 main.c
+&lt;span class=&#34;c1&#34;&gt;# optimize even more for speed&lt;/span&gt;
+$ clang -O2 main.c
+&lt;span class=&#34;c1&#34;&gt;# optimize even more more for speed&lt;/span&gt;
+$ clang -O3 main.c
+&lt;span class=&#34;c1&#34;&gt;# optimize for fastest speed possible&lt;/span&gt;
+$ clang -Ofast main.c
+&lt;span class=&#34;c1&#34;&gt;# optimize for size (basically -O2 with some optimizations that reduce size)&lt;/span&gt;
+$ clang -Os main.c
+&lt;span class=&#34;c1&#34;&gt;# optimize even more for size&lt;/span&gt;
+$ clang -Oz main.c
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;As a developer, usually you want your programs to run fast.
+So why don&amp;rsquo;t we always use &lt;code&gt;-Ofast&lt;/code&gt;?&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The first reason is that it breaks strict standards compliance.
+&lt;code&gt;-Ofast&lt;/code&gt; is basically &lt;code&gt;-O3&lt;/code&gt; with &lt;a
+  class=&#34;gblog-markdown__link--code&#34;
+  href=&#34;https://clang.llvm.org/docs/UsersManual.html#cmdoption-ffast-math&#34;
+  
+&gt;&lt;code&gt;-ffast-math&lt;/code&gt;&lt;/a&gt;.
+Fast-math will do a lot of things that are not compatible with the C or C++ standards.
+For example, it&amp;rsquo;ll replace some operation that divides by a floating-point constant &lt;code&gt;a / 0.123&lt;/code&gt; by a multiplication with the reciprocal (&lt;code&gt;a * (1 / 0.123)&lt;/code&gt;) since multiplication is usually faster, some floating point errors won&amp;rsquo;t be reported anymore, some things are less accurate, etc.&lt;/li&gt;
+&lt;li&gt;For large projects, it&amp;rsquo;ll increase compile time.
+In many cases, it might still be worth it, but others may not want to do that.&lt;/li&gt;
+&lt;li&gt;It might increase program binary size.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Okay, so the problem with &lt;code&gt;-Ofast&lt;/code&gt; is mainly non-compliant math.
+So why don&amp;rsquo;t we just always use &lt;code&gt;-O3&lt;/code&gt;?
+Why is there a &lt;code&gt;-O2&lt;/code&gt; then?
+It turns out that&amp;rsquo;s a pretty good question.
+&lt;code&gt;-O3&lt;/code&gt; is basically the same as &lt;code&gt;-O2&lt;/code&gt;.
+In the LLVM I tested, &lt;code&gt;-O3&lt;/code&gt; enables two more optimization passes than &lt;code&gt;-O2&lt;/code&gt; and for one of them it says in the code &amp;ldquo;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://github.com/llvm/llvm-project/blob/2b46417aa2d42d5d2a14df1675cfee547fd46556/llvm/lib/Passes/PassBuilderPipelines.cpp#L755&#34;
+  
+&gt;FIXME: It isn&amp;rsquo;t at all clear why this should be limited to -O3&lt;/a&gt;&amp;rdquo;.&lt;/p&gt;
+&lt;p&gt;Okay, now that we have optimized the IR, we can go on to the next step:&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h1 id=&#34;5-backend&#34;&gt;
+        5. Backend
+    &lt;/h1&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#5-backend&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 5. Backend&#34; href=&#34;#5-backend&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;51-instruction-selection&#34;&gt;
+        5.1. Instruction Selection
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#51-instruction-selection&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 5.1. Instruction Selection&#34; href=&#34;#51-instruction-selection&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;This is the first phase of the backend.
+Everything (well, most) target-specific stuff happens here.
+Now, we want to transform the optimized IR into something that&amp;rsquo;ll run on the target CPU, and as the first step we&amp;rsquo;re going to select the instructions for that.&lt;/p&gt;
+&lt;p&gt;LLVM has multiple instruction selectors:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;SelectionDAG&lt;/strong&gt; (produces the best results, best documented)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;FastIsel&lt;/strong&gt; (produces poor results, but runs quickly)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;GlobalIsel&lt;/strong&gt; (WIP, designed to combine the compilation speed of FastIsel with the quality of SelectionDAG)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Since SelectionDAG is best documented and produces the best results, I&amp;rsquo;m going to use that as an example.
+Actually, SelectionDAG is not only the name of this instruction selector but also the output of it.
+That is, the output of this instruction selector is called &lt;strong&gt;SelectionDAG&lt;/strong&gt; (selection directed, acyclic graph) too.
+In this graph, each node is an instruction and the edges are data or control dependencies.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;A finished DAG (for the program from &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;#31-lexer&#34;
+  
+&gt;3.1&lt;/a&gt;) looks like this:&lt;/p&gt;
+
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  &lt;div class=&#34;flex justify-center&#34;&gt;
+    &lt;figure class=&#34;gblog-post__figure&#34;&gt;
+      &lt;a class=&#34;gblog-markdown__link--raw&#34; href=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/selectiondag-final.png&#34;&gt;
+        &lt;picture&gt;
+          &lt;source
+            
+              srcset=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/selectiondag-final_hu6310ef32cd856d3dfd653fb57f03ae37_44586_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/selectiondag-final_hu6310ef32cd856d3dfd653fb57f03ae37_44586_1200x0_resize_box_3.png 1200w&#34; sizes=&#34;100vw&#34;
+            
+          /&gt;
+          &lt;img
+            loading=&#34;lazy&#34;
+            src=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/selectiondag-final_hu6310ef32cd856d3dfd653fb57f03ae37_44586_1800x0_resize_box_3.png&#34;
+            alt=&#34;Final SelectionDAG&#34;
+          /&gt;
+        &lt;/picture&gt;
+      &lt;/a&gt;
+      
+        &lt;figcaption&gt;
+          Final SelectionDAG
+        &lt;/figcaption&gt;
+      
+    &lt;/figure&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;But how is that graph built?
+There are multiple steps involved here:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;First of all, we&amp;rsquo;re using static mappings from IR instruction to SelectionDAG node, and the control and dataflow dependencies we can infer from the IR to build an initial, naive SelectionDAG.&lt;sup id=&#34;fnref:5&#34;&gt;&lt;a href=&#34;#fn:5&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Now we&amp;rsquo;re applying some basic optimizations to it.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The (still naive) SelectionDAG we now have might not even be runnable on the target CPU.
+Maybe it contains operations that aren&amp;rsquo;t supported or some type doesn&amp;rsquo;t work with the operation used, etc.
+In other words, it might be an &lt;strong&gt;illegal&lt;/strong&gt; SelectionDAG.
+So now, as the first step of making it a legal graph, we&amp;rsquo;re going the &lt;strong&gt;legalize&lt;/strong&gt; the types.
+There are two kinds of modifications we can make to the types here:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Type promotion&lt;/strong&gt; (converting a small type to a larger one)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Type expansion&lt;/strong&gt; (splitting up a larger type into multiple smaller ones)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;For example: If the target doesn&amp;rsquo;t support 16-bit integers, we&amp;rsquo;re just going to &lt;em&gt;promote&lt;/em&gt; it to a 32-bit integer instead.
+Likewise, if it doesn&amp;rsquo;t support 64-bit integers, we&amp;rsquo;re just going to &lt;em&gt;expand&lt;/em&gt; it to two 32-bit ints instead.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Now, we optimize that again, mostly to get rid of redundant operations introduced by type promotion/expansion.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;After that, we&amp;rsquo;re going to legalize the operations.
+Targets sometimes have weird, arbitrary constraints for the types that can be used for some operations.
+(x86 does not support byte-conditional moves, PowerPC does not support sign-extending loads from a 16-bit memory location.) So we&amp;rsquo;ll apply type promotion and type expansion or some custom, target-specific modifications here to make the SelectionDAG legal.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Optimize again.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Actually select the instructions.
+This phase is a bit more complicated, but in a nutshell, LLVM will take the instructions in the SelectionDAG we have (which are target-independent instructions that just happen to be executable on the target machine) and translate them into target-specific instructions, while also using pattern-matching to combine instructions where possible.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;52-scheduling-and-formation&#34;&gt;
+        5.2. Scheduling and Formation
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#52-scheduling-and-formation&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 5.2. Scheduling and Formation&#34; href=&#34;#52-scheduling-and-formation&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Now we have a SelectionDAG of machine instructions.
+However, CPUs don&amp;rsquo;t run DAGs.
+So we need to linearize the SelectionDAG, that is, form it into a list.
+There are many ways to do that, LLVM will just use some heuristics so we, for instance, always have enough registers available, you can also take into account instruction latencies, etc.
+You can print the linearized SelectionDAG for some LLVM IR using &lt;code&gt;llc -print-machineinstrs ...&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;After this, there&amp;rsquo;s a machine code (actually MIR) based optimization phase.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;53-register-allocation&#34;&gt;
+        5.3. Register Allocation
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#53-register-allocation&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 5.3. Register Allocation&#34; href=&#34;#53-register-allocation&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Up until this point, even if you might not have realized, we acted like the target machine has an infinite amount of one-time assignable registers.&lt;/p&gt;
+&lt;p&gt;In other words, the IR and SelectionDAG was in the so-called &lt;strong&gt;SSA&lt;/strong&gt; (single static assignment) form.
+The SSA form simplifies many analyses of the control flow graph of the IR.
+At this point, we want to select the actual target registers we will use for the previously virtual SSA registers.
+Most targets only have 16, maybe 32 registers and many of those are reserved for special purposes.
+It&amp;rsquo;s possible we don&amp;rsquo;t have enough physical registers to accomodate all the virtual registers.
+That means we have to put some of them into main memory instead, which is called &lt;strong&gt;spilling&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;Now that we&amp;rsquo;ve selected the physical registers, we&amp;rsquo;re adding some prologue and epilogue instructions to the function, that is, push some registers on the stack and pop them again later.&lt;/p&gt;
+&lt;p&gt;After that comes a machine code based optimization phase.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;54-code-emission&#34;&gt;
+        5.4. Code Emission
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#54-code-emission&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 5.4. Code Emission&#34; href=&#34;#54-code-emission&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Now we can finally emit the optimized machine code, in whatever format the user desires.
+Some targets support writing &lt;code&gt;.o&lt;/code&gt; files directly, for others assembly will be written and assembled into an &lt;code&gt;.o&lt;/code&gt; file as an intermediate step.
+Note that to be able to run this file, we also need to link it, which Clang can do for you as well.
+(Not Clang itself, Clang will just call a linker.)&lt;/p&gt;
+
+
+
+
+
+
+  
+
+  
+  
+  
+  
+
+  
+
+
+  &lt;div class=&#34;flex justify-center&#34;&gt;
+    &lt;figure class=&#34;gblog-post__figure&#34;&gt;
+      &lt;a class=&#34;gblog-markdown__link--raw&#34; href=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/codegen-feature-matrix.png&#34;&gt;
+        &lt;picture&gt;
+          &lt;source
+            
+              srcset=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/codegen-feature-matrix_hu5ef6a93dc4609498d73a98f1ccec3ec0_49653_600x0_resize_box_3.png 600w, https://blog.parcio.de/posts/2022/07/clang-llvm-overview/codegen-feature-matrix_hu5ef6a93dc4609498d73a98f1ccec3ec0_49653_1200x0_resize_box_3.png 1200w&#34; sizes=&#34;100vw&#34;
+            
+          /&gt;
+          &lt;img
+            loading=&#34;lazy&#34;
+            src=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/codegen-feature-matrix_hu5ef6a93dc4609498d73a98f1ccec3ec0_49653_1800x0_resize_box_3.png&#34;
+            alt=&#34;Feature matrix of the different target code generators&#34;
+          /&gt;
+        &lt;/picture&gt;
+      &lt;/a&gt;
+      
+        &lt;figcaption&gt;
+          Feature matrix of the different target code generators (From &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://llvm.org/docs/CodeGenerator.html#target-feature-matrix&#34;
+  
+&gt;https://llvm.org/docs/CodeGenerator.html#target-feature-matrix&lt;/a&gt;)
+        &lt;/figcaption&gt;
+      
+    &lt;/figure&gt;
+  &lt;/div&gt;
+
+
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h1 id=&#34;6-optimizations&#34;&gt;
+        6. Optimizations
+    &lt;/h1&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#6-optimizations&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 6. Optimizations&#34; href=&#34;#6-optimizations&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;loop-unrolling&#34;&gt;
+        Loop unrolling
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#loop-unrolling&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Loop unrolling&#34; href=&#34;#loop-unrolling&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;As an example function, take this piece of code which will just copy over 16 integers from &lt;code&gt;s&lt;/code&gt; to &lt;code&gt;d&lt;/code&gt;.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-C&#34; data-lang=&#34;C&#34;&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;copy_16&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;16&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;+&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;When we execute this, we basically do:&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;i := 0,
+check:
+is i &amp;lt; 16? if no goto end
+d[i] = s[i]
+i++
+goto check
+end:
+return
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;So we&amp;rsquo;ll check 16 times if &lt;code&gt;i &amp;lt; 16&lt;/code&gt;  and we&amp;rsquo;ll increment &lt;code&gt;i&lt;/code&gt; 16 times, which is quite a bit of overhead, given that we know we want &lt;em&gt;exactly&lt;/em&gt; 16 iterations.&lt;/p&gt;
+&lt;p&gt;Clang/LLVM will use loop unrolling to transform it into this:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-C&#34; data-lang=&#34;C&#34;&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;copy_16&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+  &lt;span class=&#34;c1&#34;&gt;// ...
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;So basically we just repeat the loop body 16 times and save the overhead.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;vectorizing&#34;&gt;
+        Vectorizing
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#vectorizing&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Vectorizing&#34; href=&#34;#vectorizing&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Even if we don&amp;rsquo;t have a fixed upper bound for the loop, LLVM can still do something about it.
+In this example we do the same thing but iterate up to &lt;code&gt;n&lt;/code&gt;, which is a parameter, so not known at compile time.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-C&#34; data-lang=&#34;C&#34;&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;copy_n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;+&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Many CPUs have instructions that allow to copy over a lot more bytes at once, which is faster than only copying 4 bytes at once.
+So the compiler will try to use those instructions for the bulk of the copying and do the rest one-by-one again.
+That&amp;rsquo;s called vectorization.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-C&#34; data-lang=&#34;C&#34;&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;copy_n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;127&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;+&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;128&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;c1&#34;&gt;// copy 128 bytes at once
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;+&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;function-inlining-and-loop-unrolling&#34;&gt;
+        Function inlining and loop unrolling
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#function-inlining-and-loop-unrolling&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Function inlining and loop unrolling&#34; href=&#34;#function-inlining-and-loop-unrolling&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;In this example, we have a mixture of the above.
+There&amp;rsquo;s &lt;code&gt;copy_n&lt;/code&gt;, which still takes the upper loop limit as a parameter, and it is used in &lt;code&gt;copy_16_v2&lt;/code&gt;, which unconditionally calls copy_n with &lt;code&gt;n=16&lt;/code&gt;.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-C&#34; data-lang=&#34;C&#34;&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;copy_n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;+&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+
+&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;copy_16_v2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;copy_n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;16&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The compiler will now basically copy and paste the implementation of &lt;code&gt;copy_n&lt;/code&gt; into the other function, which is called function inlining.
+Then it can deduce that the for loop limit is 16, so it&amp;rsquo;ll make use of loop unrolling again.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-C&#34; data-lang=&#34;C&#34;&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;copy_16_v2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;d&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+  &lt;span class=&#34;c1&#34;&gt;// ...
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h1 id=&#34;7-sources&#34;&gt;
+        7. Sources
+    &lt;/h1&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/07/clang-llvm-overview/#7-sources&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor 7. Sources&#34; href=&#34;#7-sources&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;[Ray Toal, Intro to Compilers] Toal, R. Intro to Compilers. &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://www.cs.cornell.edu/~asampson/blog/llvm.html&#34;
+  
+&gt;https://www.cs.cornell.edu/~asampson/blog/llvm.html&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;[Finkel, 2017] Finkel, H. and Horváth, G. (2017). Code Transformation and analysis using Clang and LLVM. &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://llvm.org/devmtg/2017-06/2-Hal-Finkel-LLVM-2017.pdf&#34;
+  
+&gt;https://llvm.org/devmtg/2017-06/2-Hal-Finkel-LLVM-2017.pdf&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://stackoverflow.com/questions/6319086/are-gcc-and-clang-parsers-really-handwritten&#34;
+  
+&gt;https://stackoverflow.com/questions/6319086/are-gcc-and-clang-parsers-really-handwritten&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://stackoverflow.com/questions/11510792/is-the-semantic-analysis-step-in-clang-an-essential-part-of-the-compiler&#34;
+  
+&gt;https://stackoverflow.com/questions/11510792/is-the-semantic-analysis-step-in-clang-an-essential-part-of-the-compiler&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://cppdepend.com/blog/?p=321&#34;
+  
+&gt;https://cppdepend.com/blog/?p=321&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://llvm.org/docs/CodeGenerator.html#legalize-operations&#34;
+  
+&gt;https://llvm.org/docs/CodeGenerator.html#legalize-operations&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://eli.thegreenplace.net/2013/02/25/a-deeper-look-into-the-llvm-code-generator-part-1&#34;
+  
+&gt;https://eli.thegreenplace.net/2013/02/25/a-deeper-look-into-the-llvm-code-generator-part-1&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://stackoverflow.com/questions/845355/do-programming-language-compilers-first-translate-to-assembly-or-directly-to-mac&#34;
+  
+&gt;https://stackoverflow.com/questions/845355/do-programming-language-compilers-first-translate-to-assembly-or-directly-to-mac&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://eli.thegreenplace.net/2012/11/24/life-of-an-instruction-in-llvm/&#34;
+  
+&gt;https://eli.thegreenplace.net/2012/11/24/life-of-an-instruction-in-llvm/&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://llvm.org/docs/CodeGenerator.html#target-feature-matrix&#34;
+  
+&gt;https://llvm.org/docs/CodeGenerator.html#target-feature-matrix&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://blog.regehr.org/archives/1603&#34;
+  
+&gt;https://blog.regehr.org/archives/1603&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://github.com/llvm/llvm-project/blob/7175886a0f612aded1430ae240ca7ffd53d260dd/llvm/lib/Passes/PassBuilderPipelines.cpp#L717&#34;
+  
+&gt;https://github.com/llvm/llvm-project/blob/7175886a0f612aded1430ae240ca7ffd53d260dd/llvm/lib/Passes/PassBuilderPipelines.cpp#L717&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://clang.llvm.org/docs/CommandGuide/clang.html&#34;
+  
+&gt;https://clang.llvm.org/docs/CommandGuide/clang.html&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Some compilers translate into machine code directly (LLVM, mostly), other translate into assembly and use an assembler to compile it into machine code (GCC).&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Not necessarily, there&amp;rsquo;s something called &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://hannes.hauswedell.net/post/2017/12/09/fmv/&#34;
+  
+&gt;Function Multiversioning&lt;/a&gt;, but that&amp;rsquo;s not automatic.&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:3&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://en.wikipedia.org/wiki/Profile-guided_optimization&#34;
+  
+&gt;Profile guided optimization&lt;/a&gt; might help in that case, though.&amp;#160;&lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:4&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;There&amp;rsquo;s one other type of edge called &lt;code&gt;glue&lt;/code&gt;, that&amp;rsquo;ll make the instructions stick together through scheduling (see &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://stackoverflow.com/questions/33005061/what-are-glue-and-chain-dependencies-in-an-llvm-dag&#34;
+  
+&gt;https://stackoverflow.com/questions/33005061/what-are-glue-and-chain-dependencies-in-an-llvm-dag&lt;/a&gt;).&amp;#160;&lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:5&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;This mapping is not entirely static. Target-specific interfaces are used to map things like returns, calls, varargs, etc. (see &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://llvm.org/docs/CodeGenerator.html#initial-selectiondag-construction&#34;
+  
+&gt;https://llvm.org/docs/CodeGenerator.html#initial-selectiondag-construction&lt;/a&gt;).&amp;#160;&lt;a href=&#34;#fnref:5&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+            </content>  
+                                <category scheme="https://blog.parcio.de/authors/hannes.winkler" term="hannes.winkler" label="hannes.winkler" />  
+                                <category scheme="https://blog.parcio.de/tags/Teaching" term="Teaching" label="Teaching" /> 
+                                <category scheme="https://blog.parcio.de/tags/EPEA-2021" term="EPEA-2021" label="EPEA 2021" /> 
+                                <category scheme="https://blog.parcio.de/tags/Clang" term="Clang" label="Clang" /> 
+                                <category scheme="https://blog.parcio.de/tags/LLVM" term="LLVM" label="LLVM" />
+        </entry>
+</feed>

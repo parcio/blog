@@ -1,0 +1,716 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <generator uri="https://gohugo.io/" version="0.92.2">Hugo</generator>
+    <title>Yolanda.Thiel on Parallel Computing and I/O Blog</title>
+        <subtitle>We conduct research and development on parallel systems</subtitle>
+            <link href="https://blog.parcio.de/authors/yolanda.thiel/" rel="alternate" type="text/html" title="HTML" />
+            <link href="https://blog.parcio.de/authors/yolanda.thiel/feed.xml" rel="self" type="application/atom+xml" title="Atom" />
+    <updated>2022-07-20T18:39:34+00:00</updated>
+    <id>https://blog.parcio.de/authors/yolanda.thiel/</id>
+        <entry>
+            <title>Lossless data compression</title>
+            <link href="https://blog.parcio.de/posts/2022/05/lossless-data-compression/" rel="alternate" type="text/html"  hreflang="en" />
+            <id>https://blog.parcio.de/posts/2022/05/lossless-data-compression/</id>
+                    <author>
+                        <name>Yolanda Thiel</name>
+                    </author>
+            <published>2022-05-24T00:00:00+00:00</published>
+            <updated>2022-05-24T00:00:00+00:00</updated>
+            <content type="html">
+                &lt;p&gt;This post is an introduction to lossless data compression in which we will explore the approaches of entropy-based/statistical as well as dictionary-based compression and explain some of the most common algorithms.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;but-first-of-all-why-do-we-even-need-data-compression&#34;&gt;
+        But first of all, why do we even need data compression?
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#but-first-of-all-why-do-we-even-need-data-compression&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor But first of all, why do we even need data compression?&#34; href=&#34;#but-first-of-all-why-do-we-even-need-data-compression&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Audio and video communication as well as large multimedia platforms as we know them today are only possible because of data compression.
+Usually, every single photo or video posted on social media or video/streaming platforms has to be compressed.
+Otherwise, the size of the data would be too large to deal with effectively.
+Of course, in scientific research, there are also fields of application where we generate or measure large amounts of data.
+To store all this data, we need data compression.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;basics&#34;&gt;
+        Basics
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#basics&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Basics&#34; href=&#34;#basics&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;A data compression technique usually contains two algorithms:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;One compression algorithm which takes the original input A and generates a representation of this original input A&#39; which (ideally) requires less bits than A.&lt;/li&gt;
+&lt;li&gt;One reconstruction/decoding algorithm which operates on the compressed representation A&#39; and generates the reconstruction B.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;If B is identical to A, the compression is called lossless.
+If B differs from A, the compression is called lossy.
+To compare different compression algorithms it is possible to use the data compression ratio which can be calculated by dividing the uncompressed size by the compressed size of the data.&lt;/p&gt;
+
+
+  
+  &lt;link
+    rel=&#34;stylesheet&#34;
+    href=&#34;/katex-93898449.min.css&#34;
+  /&gt;
+  &lt;script defer src=&#34;/js/katex-52df6cf1.bundle.min.js&#34;&gt;&lt;/script&gt;
+  
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(\text{data compression ratio} = \frac{\text{uncompressed size of data}}{\text{compressed size of data}} = \frac{\text{size of A}}{\text{size of A&amp;#39;}}\)&lt;/span&gt;
+&lt;p&gt;Of course, this is only one of different useful measurements and the performance of compression algorithms is highly dependent on the input data.
+But if there are several algorithms that are suitable for the data which is to be compressed, comparing the compression ratio could be sensible.&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;a-first-compression-algorithm-run-length-encoding-rle&#34;&gt;
+        A first compression algorithm: Run-Length Encoding (RLE)
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#a-first-compression-algorithm-run-length-encoding-rle&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor A first compression algorithm: Run-Length Encoding (RLE)&#34; href=&#34;#a-first-compression-algorithm-run-length-encoding-rle&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Let us have a look at this rather easy compression algorithm, called &lt;strong&gt;run-length encoding&lt;/strong&gt;:
+It stores &lt;strong&gt;runs&lt;/strong&gt; of data as single data value and count.
+A &lt;strong&gt;run&lt;/strong&gt; is a sequence in which the same data value occurs in consecutive data elements.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s consider a line of 10 pixels, where the pixels can either be white or black.
+If W stands for a white pixel and B for a  black pixel, we could have data which looks like this: &lt;code&gt;BBBBBWWWWW&lt;/code&gt;.
+A run-length encoding algorithm could compress this input as following &lt;code&gt;5B5W&lt;/code&gt;, because there are 5 black pixels followed by 5 white pixels.
+So instead of saving 10 characters, the output of RLE would only need 4 characters.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Of course, we do not need to use chars but also could use other data types to save and compress our data. We use chars in this example because this should make it easier to understand the concept.&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;This approach works best if there are many longer runs in the data.
+Therefore, the best case scenario of the input for our example would be &lt;code&gt;WWWWWWWWWW&lt;/code&gt; or &lt;code&gt;BBBBBBBBBB&lt;/code&gt;, because this input can be compressed as &lt;code&gt;10W&lt;/code&gt; or &lt;code&gt;10B&lt;/code&gt;, which is the shortest possible output for this example.
+In this case we would have a compression ratio of 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(\frac{10}{3} = 3.\overline{3}\)&lt;/span&gt;(also sometimes displayed as 10:3).&lt;/p&gt;
+&lt;p&gt;But if there aren&amp;rsquo;t many runs in the file, which is to be compressed, the output file of the algorithm might be larger than the input file.
+In the case of our example the worst case would be one of these input files: &lt;code&gt;WBWBWBWBWB&lt;/code&gt; &lt;code&gt;BWBWBWBWBW&lt;/code&gt;.&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;details style=&#34;cursor: pointer;&#34;&gt;
+&lt;summary&gt;What would be the compression rate in this worst case? &lt;i&gt;Click to show the answer.&lt;/i&gt;&lt;/summary&gt;
+&lt;p&gt;0.5, because the uncompressed size is 10 chars and the &#39;compressed&#39; size is 20 chars.&lt;/p&gt;
+&lt;/details&gt;
+&lt;hr&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;entropy-basedstatistical-compression&#34;&gt;
+        Entropy-based/statistical compression
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#entropy-basedstatistical-compression&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Entropy-based/statistical compression&#34; href=&#34;#entropy-basedstatistical-compression&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;The next approaches, we want to get to know, are called entropy-based because they use the entropy of the given data.
+The entropy of data depends on the probabilities of certain symbols to occur in the given data.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;
+While Run-Length Encoding assigns a fixed-size code to the symbols it operates on, entropy-based approaches have variable-sized codes.
+Entropy-based approaches work by replacing unique symbols within the input data with a unique and shorter prefix code.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+To ensure a good compression ratio, the used prefix should be shorter the more often a symbol occurs.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt; &lt;sup id=&#34;fnref:5&#34;&gt;&lt;a href=&#34;#fn:5&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;
+Examples of this approach are arithmetic coding, Shannon-Fano coding and Huffman coding.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h3 id=&#34;huffman-coding&#34;&gt;
+        Huffman coding
+    &lt;/h3&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#huffman-coding&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Huffman coding&#34; href=&#34;#huffman-coding&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;We will explore some of the previously mentioned properties of entropy-based compression algorithms on the example of Huffman coding.&lt;/p&gt;
+&lt;div align=&#34;center&#34;&gt;
+  &lt;figure&gt;
+    &lt;img src=&#34;huffman-coding-toennies.png&#34; alt=&#34;Huffman Coding example Tönnies&#34;&gt;
+    &lt;figcaption&gt;This example is taken from page 136 of Tönnies&#39; book &#34;Grundlagen der Bildverarbeitung&#34;.&lt;sup&gt;6&lt;/sup&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+&lt;p&gt;In this example we want to compress the image shown on the top.
+To do so, we create a normed histogram of all values as the first step.
+In the image itself but also in its histogram we can see that the darkest possible greyscale value occurs quite often while the other lighter greyscale values have lower frequencies.
+The algorithm now merges the symbols according to their frequency until there are only 2 symbols left.
+So in the case of the example, the two least frequent greyscale values are merged in every step.
+Then the original symbols are given new prefix codes.
+Symbols which were previously merged are broken down into segments and for every segment the code is extended.
+Therefore, the most occuring symbol gets the shortest prefix code and the least occuring symbol gets the longest prefix code.
+The prefix code assignment is represented in a binary tree, which is also traversed to decode the information.&lt;sup id=&#34;fnref:6&#34;&gt;&lt;a href=&#34;#fn:6&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;
+This approach produces the best code when the probabilities of symbols are negative powers of 2.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;dictionary-based-compression&#34;&gt;
+        Dictionary-based compression
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#dictionary-based-compression&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Dictionary-based compression&#34; href=&#34;#dictionary-based-compression&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Dictionary-based approaches are the last group of lossless data compression algorithms we will cover in this article.
+Unlike entropy-based approaches, dictionary-based ones do &lt;strong&gt;not&lt;/strong&gt; use a statistical model or a variable-sized code.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;Dictionary-based algorithms partition the data into phrases which are non-overlapping subsets of the original data.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+Each phrase is then encoded as a token using a dictionary.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;
+Accordingly, there are two stages in a dictionary-based compression algorithm:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;The dictionary construction stage: In this stage the algorithm finds phrases and codewords.&lt;/li&gt;
+&lt;li&gt;The parsing stage: In this stage the phrases are replaced by codewords.&lt;sup id=&#34;fnref:7&#34;&gt;&lt;a href=&#34;#fn:7&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;There are &lt;strong&gt;static dictionary codes&lt;/strong&gt; and &lt;strong&gt;dynamic/adaptive dictionary codes&lt;/strong&gt;.
+&lt;strong&gt;Static&lt;/strong&gt; dictionaries are created before the input processing and stay the same for the complete run, while &lt;strong&gt;dynamic&lt;/strong&gt; dictionaries are updated during parsing which means that in this case the two stages (dictionary construction and parsing) are interleaved.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+After these rather theoretical basics about dictionary-based compression, we will now dive into different LZ-family algorithms to explain these things on a few examples.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h3 id=&#34;lz-family&#34;&gt;
+        LZ family
+    &lt;/h3&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lz-family&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor LZ family&#34; href=&#34;#lz-family&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;These algorithms are named after their creators Abraham Lempel and Jacob Ziv and are some of the most known dictionary compression methods.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+The algorithms we will go into detail about are LZ77 and LZ78, which are the two original algorithms developed by Lempel and Ziv, as well as a few of their variants.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h3 id=&#34;lz77-and-its-variants&#34;&gt;
+        LZ77 and its variants
+    &lt;/h3&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lz77-and-its-variants&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor LZ77 and its variants&#34; href=&#34;#lz77-and-its-variants&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;LZ77 assumes and exploits that data is most likely to be repeated.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+The principle is to use a part of the previously-seen input stream as the dictionary.
+Thus the input is analyzed through a sliding window:&lt;/p&gt;
+&lt;div align=&#34;center&#34;&gt;
+  &lt;figure&gt;
+    &lt;img src=&#34;lz77-sliding-window-salomon.png&#34; alt=&#34;LZ77 Sliding Window Salomon&#34;&gt;
+    &lt;figcaption&gt;This example is taken from page 176 of Salomon&#39;s book &#34;Data Compression: The Complete Reference&#34;.&lt;sup&gt;3&lt;/sup&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+&lt;p&gt;As seen in the figure above, the window is divided in two parts:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The search buffer: The current dictionary which includes symbols that have previously been input and encoded.&lt;/li&gt;
+&lt;li&gt;The look-ahead buffer which contains data yet to be encoded.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt; When a word is repeated, it can be replaced by a pointer to the last occurrence accompanied by the number of matched characters.&lt;sup id=&#34;fnref:8&#34;&gt;&lt;a href=&#34;#fn:8&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;8&lt;/a&gt;&lt;/sup&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I will explain this further on the example shown in the image above:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The encoder scans the search buffer from &lt;strong&gt;right to left&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;It looks for a match in the dictionary (search buffer) for the first symbol &lt;strong&gt;e&lt;/strong&gt; which is in the front of the look-ahead buffer.&lt;/li&gt;
+&lt;li&gt;It finds an &lt;strong&gt;e&lt;/strong&gt; in &amp;ldquo;&lt;strong&gt;easily&lt;/strong&gt;&amp;rdquo; at a distance of &lt;strong&gt;8&lt;/strong&gt; from the end of the search buffer (you have to count from right to left, distance of 1 would be the symbol left of the currently selected symbol).&lt;/li&gt;
+&lt;li&gt;The encoder then matches as many symbols following those 2 e&amp;rsquo;s as possible which are in this case the 3 symbols &amp;ldquo;&lt;strong&gt;eas&lt;/strong&gt;&amp;rdquo;.&lt;/li&gt;
+&lt;li&gt;The length of the match is therefore &lt;strong&gt;3&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;The encoder then continues its backward scan to find a longer match.&lt;/li&gt;
+&lt;li&gt;In this case there is no longer match, but a same length match in &amp;ldquo;&lt;strong&gt;eastman&lt;/strong&gt;&amp;rdquo;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Generally, the encoder selects the longest match or the last one found and prepares the token.
+Why does it use the last one found?
+The answer is quite simple: The algorithm then doesn&amp;rsquo;t have to keep track of all found matches and can save memory space.
+In practical implementations the search buffer is some thousands of bytes long whereas the look-ahead buffer is some tens of bytes long.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Here you can see what the first 5 steps and tokens look like for the example in the image above:&lt;/strong&gt;&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style=&#34;text-align:right&#34;&gt;Search Buffer&lt;/th&gt;
+&lt;th style=&#34;text-align:left&#34;&gt;Look-Ahead Buffer&lt;/th&gt;
+&lt;th style=&#34;text-align:center&#34;&gt;Token&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;sir_sid_eastman_&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;(0,0,&amp;ldquo;s&amp;rdquo;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;s&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;ir_sid_eastman_e&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;(0,0,&amp;ldquo;i&amp;rdquo;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;si&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;r_sid_eastman_ea&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;(0,0,&amp;ldquo;r&amp;rdquo;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;sir&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;_sid_eastman_eas&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;(0,0,&amp;quot;_&amp;quot;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;sir_&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;sid_eastman_easi&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;(4,2,&amp;ldquo;d&amp;rdquo;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;The token always consists of 3 elements:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The first element is the distance of the found match. If there is no match, this element is 0.&lt;/li&gt;
+&lt;li&gt;The second element is the length of the found match. If there is no match, this is again 0.&lt;/li&gt;
+&lt;li&gt;The third and last element is the new symbol which is to be appended.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This approach is suffix-complete, meaning that any suffix of a phrase is a phrase itself. So if the phrase &amp;ldquo;cold&amp;rdquo; is in the dictionary, so are &amp;ldquo;old&amp;rdquo;, &amp;ldquo;ld&amp;rdquo; and &amp;ldquo;d&amp;rdquo;.
+The performance of this algorithm is limited by the number of comparisons needed for finding a matching pattern.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+While the encoder is a bit more complicated, the decoder is rather simple meaning that LZ77 and its variants are useful in cases where data has to be compressed once but decompressed very often.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;Let&amp;rsquo;s try to decode some data compressed by LZ77:
+The 3 tokens (from left &lt;em&gt;[first]&lt;/em&gt; to right &lt;em&gt;[last]&lt;/em&gt;) are: (0,0,&amp;ldquo;y&amp;rdquo;), (0,0,&amp;ldquo;a&amp;rdquo;) and
+(2,1,&amp;quot;!&amp;quot;).&lt;/p&gt;
+&lt;details style=&#34;cursor: pointer;&#34;&gt;
+&lt;summary&gt;&lt;i&gt;Click to show a tip.&lt;/i&gt;&lt;/summary&gt;
+&lt;p&gt;You have to &#34;fill up&#34; a buffer from right to left, using one token at a time and &#34;pushing&#34; the entries one space to the left in every step.&lt;/p&gt;
+&lt;/details&gt;
+&lt;details style=&#34;cursor: pointer;&#34;&gt;
+&lt;summary&gt;Did you find out the decoded text? &lt;i&gt;Click to show the solution.&lt;/i&gt;&lt;/summary&gt;
+&lt;p&gt;yay!&lt;/p&gt;
+&lt;/details&gt;
+&lt;hr&gt;
+&lt;p&gt;Let&amp;rsquo;s have a short look at a few &lt;strong&gt;LZ77 variants&lt;/strong&gt;:&lt;/p&gt;
+&lt;p&gt;(Please note that this part is just a small overview and does not fully explain
+how these variants work since that would go beyond the scope of this article.)&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h4 id=&#34;lzss&#34;&gt;
+        LZSS
+    &lt;/h4&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lzss&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor LZSS&#34; href=&#34;#lzss&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;This derivative algorithm was developed by Storer and Szymanski.
+The look-ahead buffer is in this case improved by storing it in a circular queue and the algorithm holds the search buffer in a binary search tree.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+Because of that, the tokens have only 2 fields instead of 3.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h4 id=&#34;deflate&#34;&gt;
+        DEFLATE
+    &lt;/h4&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#deflate&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor DEFLATE&#34; href=&#34;#deflate&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;This algorithm &amp;ndash; developed by Philip Katz &amp;ndash; was originally used in Zip and Gzip software and has been adopted by many applications including HTTP and PNG.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;
+It is based on LZSS, but uses a chained hash table to find duplicates.
+The matched lengths and distances are further compressed with two Huffman trees.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h4 id=&#34;lzma&#34;&gt;
+        LZMA
+    &lt;/h4&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lzma&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor LZMA&#34; href=&#34;#lzma&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;The last LZ77 variant of this short overview is the Lempel-Ziv-Markov chain-Algorithm which is the default compression algorithm of 7-zip.
+Its principle is similar to that of DEFLATE but it doesn&amp;rsquo;t use Huffman coding and instead uses range encoding which is an integer-based version of arithmetic coding (an entropy-based compression algorithm).
+This does complicate the encoder but also results in better compression.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h3 id=&#34;lz78-and-its-variants&#34;&gt;
+        LZ78 and its variants
+    &lt;/h3&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lz78-and-its-variants&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor LZ78 and its variants&#34; href=&#34;#lz78-and-its-variants&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;LZ78 constructs its dictionary differently than LZ77 and does therefore not use any search buffer, look-ahead buffer or sliding window.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+Compared to LZ77&amp;rsquo;s three-field tokens the LZ78 encoder outputs two-field tokens which each consist of a pointer to the dictionary and the code of a symbol.
+Since the length of the phrases are implied in the dictionary, it doesn&amp;rsquo;t need to be part of the token.&lt;/p&gt;
+&lt;p&gt;Each token corresponds to a phrase of input symbols.
+That phrase is added to the dictionary after the token is written on the compressed stream.
+The size of LZ78&amp;rsquo;s dictionary is only limited by the amount of available memory, because unlike in LZ77 nothing is ever deleted from the dictionary in LZ78.
+On the one hand, this can be an advantage since future pharses can be compressed by dictionary phrases which occured a lot earlier.
+On the other hand, this can also be a disadvantage because the dictionary tends to grow fast and can fill up the entire available memory.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;The LZ78 algorithm begins with a single symbol entry in its dictionary, which is the null string at position zero.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt; &lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+Then it concatenates the first symbol of the following input after every parsing step.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s try to further understand the algorithm by going through an example:
+We want to compress the input &lt;code&gt;a_b_a&lt;/code&gt;.
+The current state could be displayed like this:&lt;/p&gt;
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Dictionary&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Token&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;null&lt;/td&gt;
+    &lt;td&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+&lt;p&gt;As previously mentioned the algorithm starts with the null pointer as the dictionary&amp;rsquo;s entry at position 0.&lt;/p&gt;
+&lt;p&gt;At first the dictionary is searched for &amp;ldquo;a&amp;rdquo;.
+If &amp;ldquo;a&amp;rdquo; is not found, the algorithm adds &amp;ldquo;a&amp;rdquo; to the dictionary at position 1 and outputs the token (0, &amp;ldquo;a&amp;rdquo;) since &amp;ldquo;a&amp;rdquo; is the concatenation of the null string and the symbol &amp;ldquo;a&amp;rdquo;.&lt;/p&gt;
+&lt;p&gt;a&lt;code&gt;_b_a&lt;/code&gt;&lt;/p&gt;
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Dictionary&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Token&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;null&lt;/td&gt;
+    &lt;td&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;&#34;a&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;a&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+&lt;p&gt;Now the dictionary is searched for &amp;ldquo;_&amp;rdquo;, since this symbol is also not yet part of the dictionary, it is added analogously to position 2 and the output token is (0, &amp;ldquo;_&amp;quot;).
+This then happens again for &amp;ldquo;b&amp;rdquo; at position 3.&lt;/p&gt;
+&lt;p&gt;a_b&lt;code&gt;_a&lt;/code&gt;&lt;/p&gt;
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Dictionary&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Token&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;null&lt;/td&gt;
+    &lt;td&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;&#34;a&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;a&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;2&lt;/td&gt;
+    &lt;td&gt;&#34;_&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;_&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;3&lt;/td&gt;
+    &lt;td&gt;&#34;b&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;b&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+&lt;p&gt;Now that the first 3 symbols of our input &lt;code&gt;a_b_a&lt;/code&gt; are put in the dictionary, the encoder finds a dictionary entry for the next symbol &amp;ldquo;_&amp;rdquo;, but not for &amp;ldquo;_a&amp;rdquo; and therefore adds &amp;ldquo;_a&amp;rdquo; to the dictionary at position 4 and the output token is (2, &amp;ldquo;a&amp;rdquo;), because 2 is the position of &amp;ldquo;_&amp;rdquo;.&lt;/p&gt;
+&lt;p&gt;a_b_a&lt;/p&gt;
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Dictionary&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Token&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;null&lt;/td&gt;
+    &lt;td&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;&#34;a&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;a&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;2&lt;/td&gt;
+    &lt;td&gt;&#34;_&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;_&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;3&lt;/td&gt;
+    &lt;td&gt;&#34;b&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;b&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;4&lt;/td&gt;
+    &lt;td&gt;&#34;_a&#34;&lt;/td&gt;
+    &lt;td&gt;(2, &#34;a&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+&lt;p&gt;This is another longer example taken from Salomon&amp;rsquo;s &amp;ldquo;Data Compression: The Complete Reference&amp;rdquo;&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;:
+It shows the first 14 steps for this string which is to be compressed: &lt;code&gt;sir_sid_eastman_easily_teases_sea_sick_seals&lt;/code&gt;&lt;/p&gt;
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Dictionary&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Token&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;null&lt;/td&gt;
+    &lt;td&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;&#34;s&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;s&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;2&lt;/td&gt;
+    &lt;td&gt;&#34;i&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;i&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;3&lt;/td&gt;
+    &lt;td&gt;&#34;r&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;r&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;4&lt;/td&gt;
+    &lt;td&gt;&#34;_&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;_&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;5&lt;/td&gt;
+    &lt;td&gt;&#34;si&#34;&lt;/td&gt;
+    &lt;td&gt;(1, &#34;i&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;6&lt;/td&gt;
+    &lt;td&gt;&#34;d&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;d&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;7&lt;/td&gt;
+    &lt;td&gt;&#34;_e&#34;&lt;/td&gt;
+    &lt;td&gt;(4, &#34;e&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;8&lt;/td&gt;
+    &lt;td&gt;&#34;a&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;a&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;9&lt;/td&gt;
+    &lt;td&gt;&#34;st&#34;&lt;/td&gt;
+    &lt;td&gt;(1, &#34;t&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;10&lt;/td&gt;
+    &lt;td&gt;&#34;m&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;m&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;11&lt;/td&gt;
+    &lt;td&gt;&#34;an&#34;&lt;/td&gt;
+    &lt;td&gt;(8, &#34;n&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;12&lt;/td&gt;
+    &lt;td&gt;&#34;_ea&#34;&lt;/td&gt;
+    &lt;td&gt;(7, &#34;a&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;13&lt;/td&gt;
+    &lt;td&gt;&#34;sil&#34;&lt;/td&gt;
+    &lt;td&gt;(5, &#34;l&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;14&lt;/td&gt;
+    &lt;td&gt;&#34;y&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;y&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+&lt;p&gt;So let us go through the procedure of LZ78 again quickly:
+Generally, the current symbol is read and becomes a one-symbol phrase.
+Then the encoder tries to find it in the dictionary.
+If the symbol is found in the dictionary, the next symbol is read and concatenated to the first symbol and then this two-symbol phrase is being searched for in the dictionary.
+As long as those phrases are found the process repeats.
+At some point the phrase is not found in the dictionary and thus added to it, while the output is a token consisting of the last dictionary match and the last symbol of the phrase which could not be found in the search.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;This approach is called greedy parsing because the longest phrase with a prefix match is replaced by a codeword.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+Therefore, LZ78 is prefix-complete, meaning any prefix of a phrase is a phrase itself.
+So if &amp;ldquo;hello&amp;rdquo; is part of the dictionary, so are &amp;ldquo;hell&amp;rdquo;, &amp;ldquo;hel&amp;rdquo;, &amp;ldquo;he&amp;rdquo; and &amp;ldquo;h&amp;rdquo;.&lt;/p&gt;
+&lt;p&gt;Since we&amp;rsquo;ve now gone through the base algorithm, let us have a look at variants of LZ78.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h4 id=&#34;lzw&#34;&gt;
+        LZW
+    &lt;/h4&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lzw&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor LZW&#34; href=&#34;#lzw&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;This variant was developed by Terry Welch.
+Its main feature is that it eliminates the second field of a token.
+The LZW token consists only of a pointer to the dictionary.
+This is possible because the dictionary is initialized with all the symbols in the alphabet.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;
+The GIF encoding algorithm is based on LZW.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h4 id=&#34;lzmw&#34;&gt;
+        LZMW
+    &lt;/h4&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lzmw&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor LZMW&#34; href=&#34;#lzmw&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;The second variant we will shortly mention is LZMW which was developed by V. Miller and M. Wegman.
+It is based on two principles:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;When the dictionary is full, the least-recently-used dictionary phrase is deleted.&lt;/li&gt;
+&lt;li&gt;Each phrase which is added to the dictionary is a concatenation of two phrases. This means that a dictionary phrase can grow by more than one symbol at a time (unlike in the base LZ78 algorithm).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;A drawback of this implementation is that it complicates the choice of the data structure for the dictionary because the principles of LZMW lead to a non-prefix-complete dictionary and because a phrase may be added twice due to the deletion of the least-recently-used dictionary phrase if the dictionary is full.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;limitations-of-lossless-data-compression&#34;&gt;
+        Limitations of lossless data compression
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#limitations-of-lossless-data-compression&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Limitations of lossless data compression&#34; href=&#34;#limitations-of-lossless-data-compression&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;After all these different algorithms, there is one last topic to cover:
+The limitations of lossless data compression.
+Generally, there are of course many more lossless compression algorithms, some of which are very specialised for a specific area like image or audio compression.
+These algorithms could perform badly if they would be used outside of their designated area.
+Which brings us to the question if a perfect compression algorithm could exist.
+Perfect in this case meaning that the compressed file will &lt;em&gt;&lt;strong&gt;always&lt;/strong&gt;&lt;/em&gt; be smaller than the original file.&lt;/p&gt;
+&lt;p&gt;We can find this out by using a counting argument, the pigeonhole principle.&lt;sup id=&#34;fnref:9&#34;&gt;&lt;a href=&#34;#fn:9&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;9&lt;/a&gt;&lt;/sup&gt;
+The pigeonhole principle states that if &lt;strong&gt;n items&lt;/strong&gt; are put into &lt;strong&gt;m containers&lt;/strong&gt; while &lt;strong&gt;n is greather than m&lt;/strong&gt;, then &lt;strong&gt;at least one container&lt;/strong&gt; must contain &lt;strong&gt;more than one item&lt;/strong&gt; (n and m are natural numbers).&lt;sup id=&#34;fnref:10&#34;&gt;&lt;a href=&#34;#fn:10&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;10&lt;/a&gt;&lt;/sup&gt;
+So if we consider that there are 10 pigeons but only 9 holes, at least one hole must contain more than one pigeon.&lt;/p&gt;
+&lt;div align=&#34;center&#34;&gt;
+  &lt;figure style=&#34;max-width: 50%;&#34;&gt;
+    &lt;img src=&#34;TooManyPigeons.jpg&#34; alt=&#34;Pigeon_Hole_Principle_Image&#34;&gt;
+    &lt;figcaption&gt;
+      &lt;a href=&#34;https://commons.wikimedia.org/wiki/File:TooManyPigeons.jpg&#34;&gt;
+      Pigeons-in-holes.jpg by en:User:BenFrantzDale; this image by en:User:McKay&lt;/a&gt;,
+      &lt;a href=&#34;http://creativecommons.org/licenses/by-sa/3.0/&#34;&gt;CC BY-SA 3.0&lt;/a&gt;,
+      via Wikimedia Commons
+    &lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+&lt;p&gt;Let&amp;rsquo;s go through this proof from a Stanford University lecture&lt;sup id=&#34;fnref:11&#34;&gt;&lt;a href=&#34;#fn:11&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;11&lt;/a&gt;&lt;/sup&gt;:
+We already know that in lossless data compression, we have compression function C and a decompression function D.
+To ensure that we can uniquely encode or decode a bitstring, these functions must be the inverses of each other:
+
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(D(C(x)) = x\)&lt;/span&gt;.
+This means that C must be injective.&lt;/p&gt;
+&lt;div align= &#34;center&#34;&gt;
+  &lt;figure style=&#34;max-width: 200px; text-align: center;&#34;&gt;
+    &lt;img src=&#34;injection.png&#34; alt=&#34;Injective Function&#34; style=&#34;mix-blend-mode: difference;&#34;&gt;
+    &lt;figcaption&gt;An injective function is a function, where distinct inputs map to distinct outputs.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+&lt;p&gt;Ideally, the compressed version of a bitstring would always be shorter than the input bitstring.&lt;/p&gt;
+&lt;p&gt;Let 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^n\)&lt;/span&gt; be the set of bitstrings of length n and 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^{&amp;lt;n}\)&lt;/span&gt; be the set of bitstrings of length less than n.
+There are 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(2^n\)&lt;/span&gt; bitstrings of length n and there are 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(2^0 &amp;#43; 2^1 &amp;#43; ... &amp;#43; 2^{n-1} = 2^n - 1\)&lt;/span&gt; bitstrings of length less than n.
+Since 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^{&amp;lt;n}\)&lt;/span&gt; has less elements than 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^n\)&lt;/span&gt;, there cannot be an injection from 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^n\)&lt;/span&gt; to 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^{&amp;lt;n}\)&lt;/span&gt;.&lt;/p&gt;
+&lt;p&gt;And because a perfect compression function would have to be an injection from 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^n\)&lt;/span&gt; to 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^{&amp;lt;n}\)&lt;/span&gt;, there is no perfect compression function and every lossless compression function will produce a larger output file given certain input data, to ensure that the produced output file is unique.
+Otherwise we would have a lossy compression.&lt;sup id=&#34;fnref:11&#34;&gt;&lt;a href=&#34;#fn:11&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;11&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;This means that for every lossless data compression algorithm there is input data which cannot be compressed.
+Therefore, a check if the compressed file is in fact smaller than input file is necessary.
+Furthermore, it is always useful to know what kind of data is to be compressed, so the algorithm can be chosen based on this information.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap flex align-center&#34;&gt;
+    &lt;h2 id=&#34;further-reading&#34;&gt;
+        Further reading
+    &lt;/h2&gt;
+    &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#further-reading&#34; class=&#34;gblog-post__anchor clip flex align-center&#34; aria-label=&#34;Anchor Further reading&#34; href=&#34;#further-reading&#34;&gt;
+        &lt;svg class=&#34;gblog-icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+    &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;I hope this article provided a good overview of some of the most common algorithms in lossless data compression and maybe even sparked your interest in data compression.
+This article did not nearly exhaust the topics covered in the sources it used.
+Especially &amp;ldquo;Data Compression: The Complete Reference&amp;rdquo;&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt; is a book which explains a lot of different data compression algorithms quite thoroughly.&lt;/p&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Sayood, K. (2006). Introduction to Data Compression. Third Edition. p. 1-5.&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Run-length encoding. &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://en.wikipedia.org/wiki/Run-length_encoding&#34;
+  
+&gt;https://en.wikipedia.org/wiki/Run-length_encoding&lt;/a&gt;. Accessed on: 2021-11-02.&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:3&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Salomon, D. (2007) Data Compression: The Complete Reference. Fourth Edition. p. 47-51, 74, 174-179, 189-190, 199, 209-210, 230, 242-243.&amp;#160;&lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:4&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Duwe, K., Lüttgau, J., Mania, G., Squar, J., Fuchs, A., Kuhn, M., Betke, E., &amp;amp; Ludwig, T. (2020). State of the Art and Future Trends in Data Reduction for High-Performance Computing. Supercomputing Frontiers and Innovations, 7(1), p. 4–36. &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://doi.org/10.14529/jsfi200101&#34;
+  
+&gt;https://doi.org/10.14529/jsfi200101&lt;/a&gt;&amp;#160;&lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:5&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Lu,  Z.M.,  Guo,  S.Z.: Chapter  1  -  Introduction.  In:  Lu,  Z.M.,  Guo,  S.Z.  (eds.)  Lossless Information Hiding in Images, pp. 1–68. Syngress (2017), DOI: 10.1016/B978-0-12-812006-4.00001-2&amp;#160;&lt;a href=&#34;#fnref:5&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:6&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Tönnies, K. (2005). Grundlagen der Bildverarbeitung. Chapter 6 - Bildkompression. p. 136.&amp;#160;&lt;a href=&#34;#fnref:6&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:7&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Sahinalp, S.C., Rajpoot, N.M.: Chapter 6 - Dictionary-Based Data Compression: An Algorithmic Perspective. In: Sayood, K. (ed.) Lossless Compression Handbook, pp. 153–167. Communications, Networking and Multimedia, Academic Press, San Diego (2003),DOI: 10.1016/B978-012620861-0/50007-3&amp;#160;&lt;a href=&#34;#fnref:7&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:8&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Shanmugasundaram, S. , Lourdusamy, R. (2011). A Comparative Study Of Text Compression Algorithms. ICTACT Journal on Communication Technology 1(3), p. 68–76.&amp;#160;&lt;a href=&#34;#fnref:8&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:9&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Lossless Compression. &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://en.wikipedia.org/wiki/Lossless_compression&#34;
+  
+&gt;https://en.wikipedia.org/wiki/Lossless_compression&lt;/a&gt;. Accessed on 2021-11-04.&amp;#160;&lt;a href=&#34;#fnref:9&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:10&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Pigeonhole Principle. &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://en.wikipedia.org/wiki/Pigeonhole_principle&#34;
+  
+&gt;https://en.wikipedia.org/wiki/Pigeonhole_principle&lt;/a&gt;. Accessed on 2021-11-04.&amp;#160;&lt;a href=&#34;#fnref:10&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:11&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;The Pigeonhole Principle. &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://web.stanford.edu/class/archive/cs/cs103/cs103.1132/lectures/08/Small08.pdf&#34;
+  
+&gt;https://web.stanford.edu/class/archive/cs/cs103/cs103.1132/lectures/08/Small08.pdf&lt;/a&gt;. Accessed on: 2021-11-04&amp;#160;&lt;a href=&#34;#fnref:11&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+            </content>  
+                                <category scheme="https://blog.parcio.de/authors/yolanda.thiel" term="yolanda.thiel" label="yolanda.thiel" />  
+                                <category scheme="https://blog.parcio.de/tags/Teaching" term="Teaching" label="Teaching" /> 
+                                <category scheme="https://blog.parcio.de/tags/EPEA-2021" term="EPEA-2021" label="EPEA 2021" /> 
+                                <category scheme="https://blog.parcio.de/tags/Compression" term="Compression" label="Compression" />
+        </entry>
+</feed>
