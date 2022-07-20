@@ -1,8 +1,8 @@
 +++
-title = "Lossless Data Compression"
+title = "Lossless data compression"
 date = "2022-05-24"
 authors = ["yolanda.thiel"]
-tags = ["Teaching", "EPEA 2021"]
+tags = ["Teaching", "EPEA 2021", "Compression"]
 +++
 
 This post is an introduction to lossless data compression in which we will explore the approaches of entropy-based/statistical as well as dictionary-based compression and explain some of the most common algorithms.
@@ -213,7 +213,7 @@ Each token corresponds to a phrase of input symbols.
 That phrase is added to the dictionary after the token is written on the compressed stream.
 The size of LZ78's dictionary is only limited by the amount of available memory, because unlike in LZ77 nothing is ever deleted from the dictionary in LZ78.
 On the one hand, this can be an advantage since future pharses can be compressed by dictionary phrases which occured a lot earlier.
-On the other hand, this can also be a disadvantage because the dictionary tends to grow fast and can fill up the entire available memory. [^3]
+On the other hand, this can also be a disadvantage because the dictionary tends to grow fast and can fill up the entire available memory.[^3]
 
 The LZ78 algorithm begins with a single symbol entry in its dictionary, which is the null string at position zero.[^3] [^4]
 Then it concatenates the first symbol of the following input after every parsing step.[^4]
