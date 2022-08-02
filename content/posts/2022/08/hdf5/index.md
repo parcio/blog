@@ -1,8 +1,8 @@
 +++
-title = "Self-Describing Data in Modern Storage Architectures"
-date = "2022-02-17"
+title = "Self-describing data in modern storage architectures"
+date = "2022-08-02"
 authors = ["timm.erxleben"]
-tags = ["Self-Describing Data Formats", "HDF5"]
+tags = ["Teaching", "EPEA 2021", "Self-Describing Data Formats", "HDF5"]
 +++
 
 In today's post, we will discuss the advantages of self-describing data formats.
@@ -24,16 +24,18 @@ Another advantage is that the file format can be updated without dropping suppor
 ## Why do we need self-describing data formats?
 
 As explained above, abstracting the data model from files is beneficial for the maintainability of code.
-Nevertheless, there is more to self-describing data. \
-The history of self-describing formats started in the 80s[^cdf] as the amount of scientific data produced by simulations increased.
+Nevertheless, there is more to self-describing data.
+
+The history of self-describing formats started in the 1980s[^cdf] as the amount of scientific data produced by simulations increased.
 For global exchangeability of datasets, standards were needed to abstract from architecture-dependent data types and software-dependent storage layouts.
 Take the following image as an example:
 
-![1](motivation.png)
+![Motivation](motivation.png)
 
 Imagine you receive the file on the left without information on how to interpret it.
 You will have to invest some time until you realize that it contains an ASCII encoded string.
-Understanding more complex data (especially some architecture-dependent float data types) would be practically impossible without further hints. \
+Understanding more complex data (especially some architecture-dependent float data types) would be practically impossible without further hints.
+
 However, the file on the right side contains the data type of the file content and even a comment describing its content.
 Using this information, it is easy to read the file's actual content, independent of the complexity of the data.
 The ability to annotate data with units and comments further supports exchangeability.
@@ -63,7 +65,8 @@ The most common objects in HDF5 files are groups, data types, dataspaces, datase
 Nesting groups creates a hierarchical namespace in which objects are identified by a path.
 The same object can be part of multiple groups, either via hard or soft links.
 Therefore, care must be taken to not create loops that are not prevented by HDF5.
-Every file has a root group denoted as `/`. One could say that HDF5 creates a file system within a file.
+Every file has a root group denoted as `/`.
+One could say that HDF5 creates a file system within a file.
 
 In addition to built-in **data types**, e.g., floats and integers of different flavors, users may define their own complex data types.
 Apart from creating arrays of a particular data type or packing up different data types into a compound, it is also possible to create atomic data types.
@@ -74,16 +77,19 @@ Conversion functions can be registered and saved to the HDF5 file for user-defin
 In contrast to the POSIX data model, where a file is understood as a stream of bytes, elements contained in a dataset are addressed according to an associated **dataspace**.
 The dataspace describes the number of dimensions and each dimension's size and maximum size.
 If the size and maximum size are not equal, the dataset can grow in that dimension.
-This is especially useful for time series, which might grow when more data is collected. Growth may be unbound when the maximum size is set to infinity.
+This is especially useful for time series, which might grow when more data is collected.
+Growth may be unbound when the maximum size is set to infinity.
 Unlike data types, dataspaces are always saved implicitly, i.e., they do not have a name.
 
 **Datasets** hold the actual data in HDF5 files.
 Their most important properties are the dataspace describing its shape and the data type of which its elements are.
 Nevertheless, datasets have lots of settings and properties.
 For example, the fill value for elements can be modified.
-Reading from a new dataset, which was not yet written, will return the fill value. \
+Reading from a new dataset, which was not yet written, will return the fill value.
+
 Another vital setting controls if datasets are stored continuously or chunked.
-If the dataspace contains a dimension that allows for growth, the dataset must be stored in chunks. When more data is added, chunks can be appended without moving existing data.
+If the dataspace contains a dimension that allows for growth, the dataset must be stored in chunks.
+When more data is added, chunks can be appended without moving existing data.
 The chunk size is set at the creation of the dataset.
 While writing or reading, chunked data can be passed to a filter pipeline, transforming the data stream.
 The most popular (and probably most useful) filter class is compression.
@@ -104,21 +110,23 @@ Combining multiple selections using set operators provides an intuitive way to c
 They are similar to datasets as they are named objects (i.e., are referred to by a path) and have a dataspace and a data type.
 However, there are some key differences:
 
-- They do not support partial IO, so they need to be written/read at once.
+- They do not support partial I/O, so they need to be written/read at once.
 - They do not support chunked storage and are therefore of fixed size.
 - They do not support compression.
 - They are stored as part of the header of other objects inside the HDF5 file.
 
 Attributes do not only explain the file's content to users but also enable visualization or search tools to interact with the data based on its meaning.
-Several domain-specific conventions exist for this purpose. One of the most popular sets of conventions are the [*Climate and Forecast (CF) Conventions*](http://cfconventions.org/cf-conventions/cf-conventions.html) [^CF].
+Several domain-specific conventions exist for this purpose.
+One of the most popular sets of conventions are the [*Climate and Forecast (CF) Conventions*](http://cfconventions.org/cf-conventions/cf-conventions.html)[^cf].
 If a file uses a specific set of conventions, it is automatically compatible with tools using the same conventions.
 
 All relations between the objects explained above are summarized in the following diagram.
 Please note that this is a simplified version to highlight the core concepts.
 
-![HDF5 Data Model](hdf5-model.png)
+![HDF5 data model](data-model.png)
 
-Only a short introduction to HDF5 features and concepts can be given in this post. The nitty-gritty details of the concepts explained above, as well as additional features like maps and tables, are left for research to the curious user [^details].
+Only a short introduction to HDF5 features and concepts can be given in this post.
+The nitty-gritty details of the concepts explained above, as well as additional features like maps and tables, are left for research to the curious user[^details].
 
 ## Programming with HDF5
 
@@ -137,12 +145,13 @@ The interface is grouped into several modules for a better overview:
 - `H5F` - Files
 - `H5G` - Groups
 - `H5P` - Property Lists
-- ...
+- etc.
 
 The general workflow is similar for all objects in HDF5.
 First, objects are created or opened, returning a unique handle for that object.
 Using the handle, objects can be manipulated.
-When everything is done, the object needs to be closed. The handle will then be invalid.
+When everything is done, the object needs to be closed.
+The handle will then be invalid.
 
 Let us make a short example of how to write a dataset and some attributes:
 
@@ -163,13 +172,14 @@ We will later see how the file access property list is used to access files via 
 However, in most cases, the standard is sufficient.
 
 After creating the file and a group, we should write some data.
-Therefore we create a dataspace for a 3 **x** 3 <!-- inline Latex support?? --> matrix which will be used to store `important_numbers`.
-Using our new dataspace we create the dataset named `"my_cool_data"` in the group created above.
+Therefore we create a dataspace for a 3x3 matrix which will be used to store `important_numbers`.
+Using our new dataspace we create the dataset named `my_cool_data` in the group created above.
 The data type for the numbers on the disk will be the native float type of the machine.
 
 Everything is set to actually write the matrix to the file.
-As explained above, the dataspace is again given for partial IO.
-As we pass the original dataspace, the whole matrix will be written. \
+As explained above, the dataspace is again given for partial I/O.
+As we pass the original dataspace, the whole matrix will be written.
+
 In addition, `H5Dwrite` retakes the data type and the dataspace.
 You probably wonder why the type and space need to be passed twice.
 The reason is that HDF5 can read a different data type from a different shape from memory than it may be written to disk.
@@ -177,27 +187,27 @@ Therefore, it would be possible to only take the main diagonal of a matrix in do
 
 ```c {linenos=true, linenostart=4}
 // create and write to a dataset
-float important_numbers[3][3] = {{42, 42, 42}, 
-                                 {42, 42, 42}, 
+float important_numbers[3][3] = {{42, 42, 42},
+                                 {42, 42, 42},
                                  {42, 42, 42.42}};
 hsize_t dims[2] = {3, 3};
 hsize_t* max_dims = dims;
 
 hid_t space_matrix_id = H5Screate_simple(2, dims, max_dims);
 
-hid_t set_id = H5Dcreate(group_id, "my_cool_data", H5T_NATIVE_FLOAT, space_matrix_id, 
+hid_t set_id = H5Dcreate(group_id, "my_cool_data", H5T_NATIVE_FLOAT, space_matrix_id,
     H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-H5Dwrite(set_id, H5T_NATIVE_FLOAT, space_matrix_id, space_matrix_id, 
+H5Dwrite(set_id, H5T_NATIVE_FLOAT, space_matrix_id, space_matrix_id,
     H5P_DEFAULT, &important_numbers);
 ```
 
 The following code snippet shows how to add metadata in the form of attributes to the file.
 Writing attributes is mostly similar to writing datasets.
-Nevertheless, as no partial IO is supported for attributes, the write function takes no selection of a dataspace.
+Nevertheless, as no partial I/O is supported for attributes, the write function takes no selection of a dataspace.
 
 It is also shown how to use strings in HDF5.
-The build-in type `H5T_C_S1` is copied, and its size is modified because the standard only takes 1 character.
+The built-in type `H5T_C_S1` is copied, and its size is modified because the standard only takes 1 character.
 To get a variable-sized string, you can pass `H5T_VARIABLE`.
 
 ```c {linenos=true, linenostart=17}
@@ -209,7 +219,7 @@ char content_description[] = "Contains a dataset with the answer to everything!"
 hid_t string_type = H5Tcopy(H5T_C_S1);
 H5Tset_size(string_type, sizeof(content_description));
 
-hid_t attr_group = H5Acreate(group_id, "content", string_type, space_scalar_id, 
+hid_t attr_group = H5Acreate(group_id, "content", string_type, space_scalar_id,
     H5P_DEFAULT, H5P_DEFAULT);
 
 H5Awrite(attr_group, string_type, content_description);
@@ -234,11 +244,11 @@ H5Gclose(group_id);
 H5Fclose(file_id);
 ```
 
-Putting all those snippets together to a valid C program [^full_code] and executing it yields the file `solution.h5`.
+Putting all those snippets together to a valid C program[^full_code] and executing it yields the file `solution.h5`.
 Using `h5dump` we can verify that the file indeed contains our data and metadata:
 
 ```console
-$ h5dump solution.h5     
+$ h5dump solution.h5
 HDF5 "solution.h5" {
 GROUP "/" {
    GROUP "important_data" {
@@ -282,7 +292,7 @@ More examples of short HDF5 programs can be found [here](http://web.mit.edu/fwto
 
 All we have seen so far is how to write data using a single process on a single client.
 In the context of HPC, parallel access to HDF5 files is necessary.
-Otherwise, the IO performance would be limited by the throughput of a single process on a single client.
+Otherwise, the I/O performance would be limited by the throughput of a single process on a single client.
 Multiple approaches exist for parallel access.
 
 The most straightforward way is to write one HDF5 file per process and "stitch" them together using external links in a central file.
@@ -303,25 +313,26 @@ H5Fopen("my_file.h5", H5F_ACC_RDWR, plist_id);
 Reads and writes are performed using the regular functions and appropriate dataspace selections.
 Care must be taken on which operations are *collective* (i.e., all processes must participate) or *independent*.
 All modifications of the file's structural metadata, such as creating or linking objects, are always collective.
-Reads and writes can either be collective or independent, which s controlled by the data transfer property list.
-In most cases, collective IO leads to higher throughput.
+Reads and writes can either be collective or independent, which is controlled by the data transfer property list.
+In most cases, collective I/O leads to higher throughput.
 
 Despite its easy usage, it is hard to get good performance with PHDF5.
-IO on a parallel distributed file system alone is a complex task where throughput is influenced by many factors.
-The introduction of additional IO layers further complicates IO tuning [^tuning].
+I/O on a parallel distributed file system alone is a complex task where throughput is influenced by many factors.
+The introduction of additional I/O layers further complicates I/O tuning[^tuning].
 
 ## Virtual File Layer
 
 For PHDF5, MPI-IO was added as an additional storage interface next to POSIX.
 This gave rise to the idea of a plugin system for different storage backends.
 Consequently, the structure of the HDF5 library was changed, and the *Virtual File Layer* (VFL) was introduced in version 1.4.
-Instead of using POSIX or MPI-IO directly, all IO calls are abstracted and passed to a *Virtual File Driver* (VFD).
+Instead of using POSIX or MPI-IO directly, all I/O calls are abstracted and passed to a *Virtual File Driver* (VFD).
 The VFD, in turn, will map the linear address space of an HDF5 file to the address space of a storage backend.
 VFDs are used by manipulating the file access property list and setting the respective driver, which must be registered beforehand.
 For details on registering a VFD with the HDF5 library, please refer to HDF5's documentation.
-HDF5 provides several pre-defined VFDs. Some interesting examples are:
+HDF5 provides several pre-defined VFDs.
+Some interesting examples are:
 
-- `H5FD_CORE`: perform IO to RAM
+- `H5FD_CORE`: perform I/O to RAM
 - `H5FD_SEC2`: default VFD using POSIX
 - `H5FD_MPIIO`: parallel access via MPI-IO
 - `HDF5_HDFS`: direct access to files in Hadoop Distributed File System
@@ -333,11 +344,11 @@ Currently, work is done to enable the dynamic loading of plugins at runtime.
 
 ### Limits of VFDs
 
-VFDs only abstract IO calls (i.e., only handle byte streams) and are therefore unaware of the HDF5 data model.
+VFDs only abstract I/O calls (i.e., only handle byte streams) and are therefore unaware of the HDF5 data model.
 Though decisions can be made based on address ranges (e.g., as in `H5FD_MULTI`), the file's structure can not be changed to leverage features of modern storage technologies.
 In practice, this approach excludes storage types that could (more or less) directly map the data model like, for example, [DAOS](https://github.com/daos-stack/daos).
 
-## New Architecture and Virtual Object Layer
+## New architecture and Virtual Object Layer
 
 To address the limitation of the VFD, the *Virtual Object Layer* (VOL) was introduced in version 1.12.
 It provides another interface for plugins to interact with HDF5.
@@ -347,7 +358,7 @@ For the VOL's implementation, the library was yet again restructured.
 The default VOL plugin implements the HDF5 file format specification and uses the VFL to interact with storage backends.
 The following picture summarizes the layers used in the library, in addition to some example VOL plugins not included with HDF5.
 
-![4](hdf_lib.png)
+![HDF5 architecture](architecture.png)
 
 There are multiple ways to use VOL plugins.
 The easiest way is to set environment variables to dynamically load a plugin at the program start.
@@ -355,19 +366,19 @@ However, just like VFDs, they can be used via file access control lists.
 
 Interesting new possibilities are enabled by VOL.
 For example, plugins can be stacked to a VOL chain.
-IO behavior can be traced easily by using these passthrough connectors.
+I/O behavior can be traced easily by using these passthrough connectors.
 Another use case is to transform data while passing it through the chain.
 
-Nevertheless, the most interesting use case of VOL is to map HDF5 files to modern storage backends in a more intuitive way. \
-Metadata, for example, might be separated and stored in a key-value store or database, while datasets might be stored in an object-store.
+Nevertheless, the most interesting use case of VOL is to map HDF5 files to modern storage backends in a more intuitive way.
+Metadata, for example, might be separated and stored in a key-value store or database, while datasets might be stored in an object store.
 This is the case for the two VOL plugins currently under development in the [JULEA storage framework](https://github.com/julea-io/julea).
-The goal is to make use of the enhanced query capabilities of those backends to speed up the analysis of data. \
-Another example is given by the [DAOS VOL plugin](https://github.com/HDFGroup/vol-daos), where the data model is mapped to the modern object-store DAOS, which is designed for use with persistent RAM and NVMe SSDs.
+The goal is to make use of the enhanced query capabilities of those backends to speed up the analysis of data.
+Another example is given by the [DAOS VOL plugin](https://github.com/HDFGroup/vol-daos), where the data model is mapped to the modern object store DAOS, which is designed for use with persistent RAM and NVMe SSDs.
 
 As of the current version 1.13, the VOL interface was changed based on the gained experiences.
 It will remain unstable until version 1.14, which is yet to be released.
 
-## Summary and Conclusion
+## Summary and conclusion
 
 Self-describing data formats are essential standards for exchanging scientific data as they abstract technical details from the user and enable the annotation of data with important metadata such as units.
 HDF5 offers a feature-rich data model based on groups, datasets, data types, and dataspaces.
@@ -378,15 +389,16 @@ At this point, the classical files and file systems are challenged, and new ways
 
 Of course, only the basics of HDF5 could be covered in this post, and many details need to be left out.
 Because the VFL and VOL APIs are currently under change, only their high-level concepts are featured.
-If you would like to gain further inside and hands-on experience with VOL plugins, the [webinars](https://www.hdfgroup.org/category/webinar/) offered by the HDF Group might be something for you.
+If you would like to gain further insight and hands-on experience with VOL plugins, the [webinars](https://www.hdfgroup.org/category/webinar/) offered by the HDF Group might be something for you.
 
 ## Sources
 
-All information is taken from the HDF5 documentation and the [HDF5 changelog](http://web.mit.edu/fwtools_v3.1.0/www/ADGuide/HISTORY.txt) if not stated otherwise. \
+All information is taken from the HDF5 documentation and the [HDF5 changelog](http://web.mit.edu/fwtools_v3.1.0/www/ADGuide/HISTORY.txt) if not stated otherwise.
+
 The graphics were made using [draw.io](https://app.diagrams.net/) and the [Gnome desktop icons](https://commons.wikimedia.org/wiki/GNOME_Desktop_icons) which are licensed under the [GPLv2](https://opensource.org/licenses/gpl-2.0.php).
 
 [^cdf]: Development of [CDF](https://en.wikipedia.org/wiki/Common_Data_Format) started 1985.
+[^cf]: Technically speaking, those conventions apply to the NetCDF self-describing data format. However, the naming of attributes can be transferred to HDF5 as done in the [Recommendations by NASA for Earth Science](https://earthdata.nasa.gov/esdis/eso/standards-and-references/dataset-interoperability-recommendations-for-earth-science).
 [^details]: A good starting point is the [HDF5 documentation](https://docs.hdfgroup.org/hdf5/v1_12/_r_m.html).
-[^CF]: Technically speaking those conventions apply to the NetCDF self-describing data format. However, the naming of attributes can be transferred to HDF5 as done in the [*Recommendations by NASA for Earth Science*](https://earthdata.nasa.gov/esdis/eso/standards-and-references/dataset-interoperability-recommendations-for-earth-science)
-[^full_code]: [HDF5 example full code](hdf5-example.c)
-[^tuning]: Further information on IO tuning can be found in the [HDF5 documentation](https://confluence.hdfgroup.org/display/HDF5/Parallel+HDF5).
+[^full_code]: The full code of the HDF5 example can be found [here](hdf5-example.c).
+[^tuning]: Further information on I/O tuning can be found in the [HDF5 documentation](https://confluence.hdfgroup.org/display/HDF5/Parallel+HDF5).
