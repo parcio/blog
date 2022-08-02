@@ -1,5 +1,5 @@
 +++
-title = "Self-describing data in modern storage architectures"
+title = "HDF5: Self-describing data in modern storage architectures"
 date = "2022-08-02"
 authors = ["timm.erxleben"]
 tags = ["Teaching", "EPEA 2021", "Self-Describing Data Formats", "HDF5"]
