@@ -10,6 +10,9 @@ Do not turn off just because you can not program `R`, to use `ggplot` no substan
 
 <!--more-->
 
+<div id="foobar" style="display: none; position: fixed;z-index:9999;top:0;left:0;width:100vw;height:100vh;background-size:contain;background-repeat: no-repeat no-repeat;background-position: center center; background-color:black"
+	onclick="this.style.display='none'"></div>
+
 In different to many other plotting solutions like `py-plotlib`, `gnuplot` or even `Matlab`; `ggplot` offers a layer based approach with sensible defaults. This means that if you put in data tuples with a group identifier a legend will be automatically generated with the identifier as label. If you want to change the appearance you add a naming-layer which specifies the label names. Or you want a scatter plot with a trend? No problem, just add a trend layer to your scatter plot.
 
 In this post we will take a look at the fundamentals of plotting with `ggplot`. Therefore we start with a short introduction how to use R and how to install packages. Followed by the backbone of a line plot.
@@ -231,13 +234,15 @@ Examples:
  ```
 {{</detail-tag>}}
 
+The next step will be a short advices to setup your R environment for usage with the [command line tools](#r-from-the-command-line) or with an [IDE (RStudio)](#r-with-r-studio)
+
 ### R from the command line ###
 
 The pros of using `R` directly from the command line with your favorite text editor is that you do not need to families you with yet another editor
 and that the initial setup time is very small, and you can gradually advance your setup as needed. In this section we will give tips for setting up `R` and
 list some `R` integration extension for common text editors. 
 
-
+{{<detail-tag "**read section**">}}
 #### Installation and Package installation ####
 
 The first step is to install `R`, this can be done via the package manager of your trust or via the CRAN. CRAN is the content system of `R` providing the
@@ -274,6 +279,11 @@ library(httpgd)
 library(ggplot2)
 ```
 
+#### Running Scripts ####
+
+TODO: check for correctness
+In difference python you can not run an R-script with `R script.R`, you will use `Rscript script.R` for that. The on reason beside freedom of design are sessions, which are not automatically loaded when using `Rscript` instead of `R`, which is for a scripted execution most time the expected behaviors, to be reproducible.
+
 #### Sessions ####
 
 The `R`-REPL uses Sessions. Which means if you want to exit `R` with CTRL-D or `q()` you get asked if you want to save the workspace. If you answer with yes, a `.Rhistory` and `.RData` file will be created in your current Directory. If you then start `R` again in this directory all your variables assigned, options set and commands executed will be amiable and you can continue were you stop. To store you workspace data use explicit `save.image()` or with optional `save.image(file="evreything.RData")`, you can also store and load specific R objects you can use the functions `save(obj1, obj2,file="objects.RData")` and `load("objects.RData")` to maybe share your data or create a backup. If you find the prompt at the end annoying you can start `R` with `R --no-save` or `R --save` to automatically answer this prompt, and to not have to type this every time you can use the alias system of your shell.
@@ -295,16 +305,69 @@ This will allow to view plots, and run code from your editor. For that you start
 
 For NVIM and VIM I recommend the plugin Nvim-R, which provides, object viewer, syntax highlighting, documentation viewing and despite its name also works for VIM. In addition [httpgd] works good since it's allows to view the plots easily. The short codes to use Nvim-R can be overwhelming, but you in the end you only need a view of them.
 For syntax completion and highlighting my recommandation is to install the R-library `langugaeserver` and use the LSP via the NVIM internal LSP support or for VIM use it via [coc] or similar LSP support plugin. 
+{{</detail-tag>}}
+
 
 ### R with R-Studio ###
 
-* install 
+If you like the working out of the box experience and may want to start using R for more then basic calculations and plotting you, the IDE RStudio might be the solution of your choice. This section is about  
+
+{{<detail-tag "**read more**">}}
+
+#### installation ####
+
+Priori to installing RStudio you must install a recent version of R, this can be done via the package manager of your choice or manually from the [RStudio CRAN][rstudio-cran]. With `R` installed the RStudio installer can be fetched from there [download page][RStudio-Download], just select the matching version for your OS or use again the package manager of your trust. Then you are ready go.
+
+> Note: If you using sway you propaly need to set `QT_QPA_PLATFORM=xcb`
+
+#### setup ####
+
+##### install packages
+
+RStudio provides a list of all installed packages, at the bottom right in the `Packages` tab ([img](#carousel__slide1)).
+Checked packages are available in the R-Repl and for Scripts executed in RStudio without explicit loading.
+If you want to install new packages you can do this by click on `Install` in the `Package` tab ([img](#carousel__slide2)). The then opend Dialog you can type the packages you want to install (with auto completion) and may select a CRAN ([img](#carousel__slide3)).
+
+##### set working directory #####
+
+To effictive use the tools in RStudio you should set the working directory accordinly.
+Do this under `Session->Set Working Directory->Choos Directory...` or `Ctrl+Shift+H` ([img](#carousel__slide4)).
+
+<link rel="stylesheet" type="text/css" href="/css/carousel.css">
+<section class="carousel" aria-label="Gallery">
+  <ol class="carousel__viewport">
+		{{% carousel id="1" prev="3" next="2" %}}
+{{< figures show="foobar" src="./rstudio/installtab.png" caption="List of installed and loaded packages can be found in the `Package` tab." >}}
+		{{% /carousel %}}
+		{{% carousel id="2" prev="1" next="3" %}}
+{{< figures show="foobar" src="./rstudio/update_install.png" caption="Use the buttons `Install` to install new packages and `update` to update installed once." >}}
+		{{% /carousel %}}
+		{{% carousel id="3" prev="2" next="4" %}}
+{{< figures show="foobar" src="./rstudio/install_popup.png" caption="Write the packages you want to install." >}}
+		{{% /carousel %}}
+		{{% carousel id="4" prev="3" next="1" %}}
+{{< figures show="fooblr" src="./rstudio/setworkingdir.png" caption="Set thi working directory to easly access all relevant data." >}}
+		{{% /carousel %}}
+  </ol>
+  <aside class="carousel__navigation">
+<ol class="carousel__navigation-list">
+{{< goto id="1" >}}
+{{< goto id="2" >}}
+{{< goto id="3" >}}
+{{< goto id="4" >}}
+</ol>
+  </aside>
+</section>
+
+
 * basic usage 
 	* where is the REPL
 	* reexecute script
 	* script stop points
 
-### factors vs numeric###
+{{</detail-tag>}}
+
+### factors vs numeric ###
 
 * R differentiate data between
 	* factors (discreet values like labels)
@@ -318,19 +381,28 @@ For syntax completion and highlighting my recommandation is to install the R-lib
 
 ## ggplot ##
 
-* install a package in R
-* ??
+ggplot is a plotting library written in R. It adopts a R orientation on  data frames/tables and data flow instead of command flow. In addition it provides sensible defaults. Therefore most commands have many optional parameters, which behaves in sensible manners if let empty. This is also reflected in the construction of plots.
+You don not draw individual points, you compose your plot out of layers, each layer therefore representing a kind of geometry, or modification at the axis, legend or theme.
+
+First the general structure of a ggplot plotting sicript will be shown, followed by examples to layer based consrtuction of plots. After this basics set, the realisation of different plot types as there geometry to construct them is listed, followed by customizing the plot, e.g. changing colors, and legend descriptions. 
 
 ### Hello World ###
 
 ```
-data = load.csv('---')
-plot = ggplot(data = data, aes(x = time, y = speed, group = car)) + geom_line()
+library("ggplot2")
+# if used interactive from console
+# library("httpgd")
+# hgd()
 
-# show image in gui extension(if in repl) or R-stduio
+
+data <- load.csv("timetable.csv")
+
+plot <- ggplot(data = data, aes(x = time, y = station, group = train)) + geom_line()
+
+# show image in gui extension(if in repl) or RStduio
 plot
 
-# store as pdf/png/jpg (and more) depending on the extension
+# store as pdf/png/jpg (and more) depending on the file extension(suffix)
 ggsave(plot, "plot.pdf")
 # to print in the right size (usefull for thesis)
 ggsave(plot, "plot.pdf", unit="cm", width=8, height=8)
@@ -387,3 +459,5 @@ https://cran.r-project.org/doc/manuals/r-release/R-admin.html
 [REditorSupport]:https://marketplace.visualstudio.com/items?itemName=REditorSupport.r
 [Nvim-R]:https://github.com/jalvesaq/Nvim-R
 [coc]:https://github.com/neoclide/coc.nvim
+[RStduio-Download]:https://www.rstudio.com/products/rstudio/download/#download
+[rstudio-rcan]:https://cran.rstudio.com/

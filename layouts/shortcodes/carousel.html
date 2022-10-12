@@ -1,0 +1,7 @@
+<li id="carousel__slide{{.Get "id"}}" tabindex="0" class="carousel__slide">
+  <div class="carousel__snapper">
+  {{ .Inner | markdownify }}
+  <a href="#carousel__slide{{.Get "prev"}}" class="carousel__prev">prev slide</a>
+  <a href="#carousel__slide{{.Get "next"}}" class="carousel__next">next slide</a>
+  </div>
+</li>
