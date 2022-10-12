@@ -120,19 +120,6 @@
   scroll-snap-align: center;
 }
 
-@media (hover: hover) {
-  .carousel__snapper {
-    animation-name: tonext, snap;
-    animation-timing-function: ease;
-    animation-duration: 4s;
-    animation-iteration-count: infinite;
-  }
-
-  .carousel__slide:last-child .carousel__snapper {
-    animation-name: tostart, snap;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .carousel__snapper {
     animation-name: none;
