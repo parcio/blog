@@ -1,11 +1,5 @@
 name: CI
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+on: [push, pull_request]
 jobs:
   style:
     name: Style
@@ -26,8 +20,8 @@ jobs:
               diff --color --unified "${file}" <(sed -E 's/[[:blank:]]+$//' "${file}") || ret=$?
             done
             exit ${ret} ) || exit $?
-  build:
-    name: Build
+  hugo:
+    name: Hugo
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
@@ -39,41 +33,28 @@ jobs:
         run: |
           sudo apt update || true
           sudo apt --yes --no-install-recommends install hugo
+      - name: Configure Pages
+        uses: actions/configure-pages@v2
       - name: Build blog
         run: |
           hugo
-      - name: Upload blog
-        uses: actions/upload-artifact@v3
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
         with:
-          name: blog
           path: public
-  publish:
-    name: Publish
-    needs: build
+  deploy:
+    name: Deploy
+    needs: hugo
     runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    if: ${{ github.ref == 'refs/heads/master' }}
     timeout-minutes: 30
+    if: ${{ github.ref == 'refs/heads/master' }}
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: gh-pages
-          path: pages
-      - name: Download blog
-        uses: actions/download-artifact@v3
-        with:
-          name: blog
-          path: blog
-      - name: Prepare
-        run: |
-          rsync --archive --human-readable --verbose --delete --exclude=.git blog/. pages
-      - name: Commit
-        run: |
-          cd pages
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add --all .
-          git commit --amend --reset-author --message='Blog for ${{ github.sha }}'
-          git push --force
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
