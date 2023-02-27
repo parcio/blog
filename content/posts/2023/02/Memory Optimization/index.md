@@ -1,8 +1,8 @@
 +++
-title = "Speicheroptimierung"
-date = "2023-02-23"
-authors = []
-tags = []
+title = "Memory Optimization"
+date = "2023-02-27"
+authors = ["janik.teune"]
+tags = ["C", "Memory", "Performance", "Cashing", "Cashe", "EPEA 2022", "Teaching"]
 +++
 
 In this post we will talk about memory optimization.
