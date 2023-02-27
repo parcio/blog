@@ -113,7 +113,7 @@ Data has to be aligned on words or else the CPU will spend time on reading multi
 To ensure that your data is aligned some memory cells will be left out, which is called padding.
  
 Look at the images below:  
-The left one shows two chars (__a__ and __b__) and an integer __c__ unaligned, so the CPU needs 2 cycles to read __c__.
+The left one shows two chars (**a** and **b**) and an integer **c** unaligned, so the CPU needs 2 cycles to read **c**.
  
 <!DOCTYPE html><html>
 <head><style>
@@ -237,3 +237,37 @@ Another thing that you may have already noticed is the padding will not always a
 Instead, the padding will align the data according to the largest element in the struct.
 This inludes elements in inner structs as well.
 
+### Array of Structs and Struct of Arrays
+
+AoS and SoA (Array of Structs and Struct of Arrays) are ways to organize your data.
+When you implement your functions you should carefully think about the way your data is accessed.
+Accessing your data inefficiently can lead to surprising performance differences!
+
+#### Array of Structs
+
+This method is a simple and naive approach that *can* be efficient. 
+
+Imagine you want to implement an array of 3-dimensional points
+and a function to access a point from that list.
+
+The naive approach is to implement a struct that represents a single point
+and then simply take an array of those structs.
+
+```C
+struct point3D {
+    float x;
+    float y;
+    float z;
+};
+
+struct point3D points[n];
+
+float get_point_x(int i) {
+	return points[i].x;
+}
+```
+
+If you want to iterate over this list and change every point, then this is a good idea.
+However, if you want to iterate over all `x` coordinates for instance, 
+then your cashe is not used optimally. 
+Every time you access the `x` coordinate of a point, its `y` and `z`.
