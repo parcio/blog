@@ -12,6 +12,7 @@ and we will see some examples on how to use memory efficiently.
 <!--more-->
 
 ## Motivation
+
 Using your memory efficiently is obviously a good idea.
 However, there is more to it, than most people think.
 
@@ -35,6 +36,7 @@ Just a small comparison:
 Using your memory efficiently and hence, using your cashes effectively will grant you a great performance-boost.
 
 ## Cashes
+
 Cashe is SRAM - Static Random Access Memory. 
 It has multiple advantages to your main memory (which is DRAM - Direct Random Access Memory).
 SRAM is much faster in comparison to DRAM and does not need to be recharged. 
@@ -51,12 +53,13 @@ img {
 }
 </style></head>
 <body>
-	<img src="SRAM_Cell_(6_Transistors).svg" height=300px alt="SRAM Cell with 6 Transistors" title="SRAM Cell with 6 Transistors" />
-	<img src="DRAM_Cell_(1_Transistor).png" height=300px alt="DRAM Cell with 1 Transistor" title="DRAM Cell with 1 Transistor" />
+	<img src="SRAM_Cell_(6_Transistors).svg" height=300px alt="SRAM Cell with 6 Transistors" title="Fig. 1 - SRAM Cell with 6 Transistors" />
+	<img src="DRAM_Cell_(1_Transistor).png" height=300px alt="DRAM Cell with 1 Transistor" title="Fig. 2 - DRAM Cell with 1 Transistor" />
 </body>
 </html>
 
 ### Cashe structure
+
 Most PCs have three levels of cashe. 
 To avoid von Neumann Bottleneck the first cashe is separated into a Level 1 instruction-cashe and a Level 1 data-cashe.
 Each CPU-core has its own Level 1 cashes, hence, cores do not share any memory in the Level 1 cashe.
@@ -79,11 +82,12 @@ img {
 }
 </style></head>
 <body>
-	<img src="CasheStructure.svg" alt="Structure of CPU-cashes" title="Structure of CPU-cashes" />
+	<img src="CasheStructure.svg" alt="Structure of CPU-cashes" title="Fig. 3 - Structure of CPU-cashes" />
 </body>
 </html>
 
 ### Cashe Access
+
 When a CPU wants to load new data, it looks into the cashes first.
 Therefore, it computes a Tag, from the Address of that data.
 All data inside the cashe can be found with their Tag.
@@ -94,6 +98,7 @@ A casheline is a line of 8 consecutive words (that means 64 byte).
 The idea is that the Programm might need the surrounding data next, so the CPU can use the cashe for the upcomming tasks.
 
 ## Programming efficiently
+
 Knowing how the cashe works, 
 we can start thinking about improving the performance of our programs,
 by effectively using the cashe.
@@ -101,6 +106,7 @@ Therefore, the first step is to decrease the memory that we use,
 so more data can fit into the cashes.
 
 ### Padding
+
 The first thing that might lead to used memory that we do not actually need is padding.
 Padding is necessary because your CPU can only process one word at a time. 
 Data has to be aligned on words or else the CPU will spend time on reading multiple words to process a single date.
@@ -116,8 +122,118 @@ img {
 }
 </style></head>
 <body>
-	<img src="int_c_two_cycles.png" alt="Unaligned data" title="Unaligned data" height=192px/>
-	<img src="int_c_one_cycle.png" alt="Aligned data" title="Aligned data" height=192px/>
+	<img src="int_c_two_cycles.png" alt="Unaligned data" title="Fig. 4 - Unaligned data" height=192px/>
+	<img src="int_c_one_cycle.png" alt="Aligned data" title="Fig. 5 - Aligned data" height=192px/>
 </body>
 </html>
+
+### Structure Packing
+
+Padding may be necessary, but can be avoided mostly.
+Lets analyze padding further!
+
+Look at the following code:
+
+```C
+struct UNORDERED {
+	char a; // a char needs 1 byte of memory
+	int b; // an int needs 4 byte of memory
+	char c;
+};
+
+int main() {
+	struct UNORDERED s;
+	printf("The structs size is %lu byte.", sizeof(s));
+}
+```
+
+As you may have expected there is a 3 byte padding after `a`.
+So we expect the output to be 9 byte.
+
+```cmd
+The structs size is 12 byte.
+```
+
+The struct needs even more space than we expected! What is going on?
+
+At the end of each struct is another padding to ensure that the next struct will be aligned, as well!
+However, we will notice that we can easily get rid of one padding just by changing the order of the elements in this struct.
+
+```C
+struct REORDERED {
+	int b;
+	char a;
+	char c;
+};
+
+int main() {
+	struct REORDERED s;
+	printf("The structs size is %lu byte.", sizeof(s));
+}
+```
+
+As you can see, I moved the integer `b` to the top
+and since `a` and `c` are the same size, there will be no padding after `a`.
+
+```cmd
+The structs size is 8 byte.
+```
+
+Nice! We could already save 4 byte of memory. 
+
+This may not seem like a lot, but imagine this kind of struct is used in an array.
+Then we will save 4 byte for each element in this array!
+
+Now, lets look at another example:
+
+```C
+struct OUTER {
+    struct INNER {
+        char *p; // a char* needs 8 byte of memory
+        int x;
+    } inner;
+    char c;
+};
+
+int main() {
+    struct OUTER outer_and_inner;
+    printf("The structs size is %lu byte.", sizeof(outer_and_inner));
+}
+```
+
+As we discussed earlier, there may be a padding at the end of each struct.
+This happens,
+even when we know 
+that the element after the struct does not need a padding to be aligned.
+
+```cmd
+The structs size is 24 byte.
+```
+
+In this case we cannot change the order of the elements to save any memory.
+But, if it is not important, we can just flatten this struct,
+to get rid of the padding at the end of the inner struct.
+
+```C
+struct FLATTENED_STRUCT {
+    char *p;
+    int x;
+    char c;
+};
+
+int main() {
+    struct FLATTENED_STRUCT flattened;
+    printf("The structs size is %lu byte.", sizeof(flattened));
+}
+```
+
+By removing the inner struct and adding its elements to the outer struct we can again save 8 byte of memory!
+
+```cmd
+The structs size is 16 byte.
+```
+
+Another thing that you may have already noticed is the padding will not always align the data to fit a 8 byte (1 word) pattern.
+Instead, the padding will align the data according to the largest element in the struct.
+This inludes elements in inner structs as well.
 
