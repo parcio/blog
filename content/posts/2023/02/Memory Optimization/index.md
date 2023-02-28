@@ -362,12 +362,90 @@ The function `setbytes` takes a pointer and an integer.
 We create a 4x4 matrix first, that is filled entirely with the given integer.
 Hence, this matrix will take 128 byte of memory.  
 To do that, we can use the `_mm_set_epi8` function, which will return us an object of type `__m128i` that contains the matrix.  
+
 We will then use write combining to write those 128 byte of data into main memory.
 The given pointer tells us where to write our data.
-The `emmintrin` library provides us with the `_mm_stream_si128` function for that.
+The `emmintrin` library provides us the `_mm_stream_si128` function for that.
 
-However, the `setbytes` function wants to write 512 byte of data.
+However, the `setbytes` function wants to write 512 byte of data to main memory.
 So we just call the `_mm_stream_si128` function 4 times, and change the destination with each call.
- 
 
-https://www.akkadia.org/drepper/cpumemory.pdf#subsection.6.1
+### Using the Cashe effectively
+
+In the last sections we already discussed how to work with the cashe efficiently.
+Ultimately, it is most important to think about how your data is layed out in the main memory
+and when the CPU is going to access that data.  
+Try to find a data model that fits your implementation, 
+or implement your algorithms in a way that uses your data model in an efficient manner.
+
+A simple example where you can see how the cashe impacts your performance could look like this:
+
+```C
+#include <stdlib.h>
+int[][] matrix_mult(int m[][], int n[][], int size) {
+	int res[][] = malloc(size * size * sizeof(int));
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			for (int k = 0; k < size; k++) {
+				res[i][j] += m[i][k] * n[k][j];
+			}
+		}
+	}
+	return res;
+}
+```
+
+As you can simply spot, this is an implementation of matrix multiplication.
+You also may already know that in **C** matrixes are more efficiently processed when they are traversed line after line.
+The reason for this is, as we discussed earlier, that in each line of that matrix, the data is layed out consecutively in your main memory.
+Hence, when we traverse this matrix line after line, we can load data from our cashes mostly!
+
+However, when multiplying matrices we need to traverse one matrix linewise and one columnwise. 
+This means, one of our matrices will be traversed inefficiently!
+
+We can avoid that by transposing the second matrix before multplying it with the first one.
+
+```C
+#include <stdlib.h>
+int[][] matrix_mult(int m[][], int n[][], int size) {
+	int tmp[][] = malloc(size * size * sizeof(int));
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			tmp[i][j] = n[j][i];
+		}
+	}
+	
+	int res[][] = malloc(size * size * sizeof(int));
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			for (int k = 0; k < size; k++) {
+				res[i][j] += m[i][k] * n[j][k];
+			}
+		}
+	}
+	return res;
+}
+```
+
+One might say, that this will increase the amount of operations needed to multply those matrices and it sure does. 
+However, this will "only" increase the complexity from *O(n^3)* to *O(n^3)+O(n^2)*, which is still in *O(n^3)*.
+Now, we take some extra steps, but lower the amount of cashe-misses tremendously.
+
+Here are some performance measures:
+
+| size | ticks of naive implementation | ticks of efficient implementation | how many times the efficient implementation is faster |
+|------|-------------------------------|-----------------------------------|------|
+| 512  | 						 62 500| 							 15 625|	 4|
+| 1024 | 					  1 829 125| 						    218 750|  8.36|
+| 1536 | 					  6 453 125| 						    765 625|  8.43|
+| 2048 | 					 29 218 750| 						  2 343 750| 12.47|
+
+As you can see, even though we have to transpose the second matrix, the performance increases a lot,
+so do not underestimate the power of cashing!
+
+## Summary and conclusion
+
+Optimizing your memory consumption and understanding how your data is layed out and accessed, 
+is an essential skill that you can learn and use to improve the performance of your programs.
+
+It is always worth to give your implementation a second thought and try out if some other structures may be more efficient.
