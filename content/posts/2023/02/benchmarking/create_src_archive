@@ -1,0 +1,6 @@
+#!/bin/sh
+tar -cf benchmarking_the_world.tar \
+	--transform 's,^,benchmarking_the_world/,'  \
+	*.hpp \
+	*.cpp \
+	meson.build
