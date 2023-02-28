@@ -325,4 +325,49 @@ As you can see, the implementation may get confusing for the reader,
 so be sure to hint why exactly your are doing this.
 
 The advantage is that you can process one casheline at a time in SIMD-like manner,
-but different coordinates that belong to the same point are not separated as much.
+but different coordinates that belong to the same point are not as much separated.
+
+### Cashe bypass
+
+Sometimes you want to write some data to the main memory, but you already know that you will not need that data anytime soon.
+Then you can tell the processor to bypass the cashe.
+Doing so, the data will be directly written to the main memory and no read operation is necessary.
+Your cashe will not participate in this interaction at all, 
+so the data that is already in the cashe can still be accessed efficiently.
+This so called **non-temporal write operation** can be used thanks to a cashe policy called [write combining](https://en.wikipedia.org/wiki/Write_combining).
+
+GCC provides some functions to use write combining.
+
+```C
+#include <emmintrin.h>
+void setbytes(char* p, int c) {
+	__m128i i = _mm_set_epi8(
+		c, c, c, c,
+		c, c, c, c,
+		c, c, c, c,
+		c, c, c, c
+	);
+		
+	_mm_stream_si128((__mm128i *) &p[0], i);
+	_mm_stream_si128((__mm128i *) &p[16], i);
+	_mm_stream_si128((__mm128i *) &p[32], i);
+	_mm_stream_si128((__mm128i *) &p[48], i);
+```
+
+At the first glance, the code looks hard to read,
+but after analyzing it for a few seconds, 
+the intention becomes clearer.
+
+The function `setbytes` takes a pointer and an integer.
+We create a 4x4 matrix first, that is filled entirely with the given integer.
+Hence, this matrix will take 128 byte of memory.  
+To do that, we can use the `_mm_set_epi8` function, which will return us an object of type `__m128i` that contains the matrix.  
+We will then use write combining to write those 128 byte of data into main memory.
+The given pointer tells us where to write our data.
+The `emmintrin` library provides us with the `_mm_stream_si128` function for that.
+
+However, the `setbytes` function wants to write 512 byte of data.
+So we just call the `_mm_stream_si128` function 4 times, and change the destination with each call.
+ 
+
+https://www.akkadia.org/drepper/cpumemory.pdf#subsection.6.1
