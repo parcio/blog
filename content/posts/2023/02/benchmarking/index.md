@@ -178,7 +178,7 @@ Benchmark             Time             CPU   Iterations
 -------------------------------------------------------
 BM_Sum/1/2        0.655 ns        0.654 ns   1000000000
 BM_Sum/10/20      0.655 ns        0.654 ns   1000000000
-BM_Sum_BigO        0.65 (1)        0.65 (1)  
+BM_Sum_BigO        0.65 (1)        0.65 (1)
 BM_Sum_RMS            0 %             0 %
 ```
 
@@ -309,19 +309,19 @@ something along these lines:
 Benchmark 1: cpp -O2 -march=x86-64
   Time (mean ± σ):     234.6 ms ±   0.0 ms    [User: 233.7 ms, System: 0.7 ms]
   Range (min … max):   234.5 ms … 234.7 ms    12 runs
- 
+
 Benchmark 2: cpp -O3 -march=x86-64
   Time (mean ± σ):     235.2 ms ±   1.0 ms    [User: 233.9 ms, System: 0.8 ms]
   Range (min … max):   234.2 ms … 237.4 ms    12 runs
- 
+
 Benchmark 3: cpp -Ofast -march=x86-64
   Time (mean ± σ):     230.0 ms ±   0.4 ms    [User: 229.4 ms, System: 0.3 ms]
   Range (min … max):   229.7 ms … 230.9 ms    13 runs
- 
+
 Benchmark 4: cpp -O2 -march=native
   Time (mean ± σ):     174.9 ms ±   0.4 ms    [User: 174.1 ms, System: 0.6 ms]
   Range (min … max):   174.2 ms … 175.5 ms    17 runs
- 
+
 Benchmark 5: cpp -O3 -march=native
   Time (mean ± σ):     142.1 ms ±   5.4 ms    [User: 140.8 ms, System: 0.7 ms]
   Range (min … max):   139.5 ms … 164.4 ms    20 runs
@@ -329,7 +329,7 @@ Benchmark 5: cpp -O3 -march=native
 Benchmark 6: cpp -Ofast -march=native
   Time (mean ± σ):     132.9 ms ±   0.7 ms    [User: 131.9 ms, System: 0.6 ms]
   Range (min … max):   132.0 ms … 134.3 ms    22 runs
- 
+
 Summary
   'cpp -Ofast -march=native' ran
     1.07 ± 0.04 times faster than 'cpp -O3 -march=native'
