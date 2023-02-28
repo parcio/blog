@@ -449,3 +449,16 @@ Optimizing your memory consumption and understanding how your data is layed out 
 is an essential skill that you can learn and use to improve the performance of your programs.
 
 It is always worth to give your implementation a second thought and try out if some other structures may be more efficient.
+
+## Sources
+
+- [U. Drepper, "What every programmer should know about memory"](https://www.akkadia.org/drepper/cpumemory.pdf), Red Hat, Inc, vol. 1.0, 2007
+- [JavaTpoint, "Structure padding in c"](https://www.javatpoint.com/structure-padding-in-c), Online; accessed 19-January-2023
+- [E. S. Raymond, "The lost art of structure-packing"](http://www.catb.org/esr/structure-packing), Online; accessed 19-January-2023
+- [Wikipedia, "AoS und SoA - Wikipedia the free encyclopedia"](https://en.wikipedia.org/wiki/AoS_and_SoA), Online; accessed 19-January-2023
+
+### Images
+
+- Figure 1 and 2 are licensed under [Red Hat, Inc.](https://www.redhat.com/en)
+- Figure 3 was made using [draw.io](https://app.diagrams.net/)
+- Figure 4 and 5 are licensed under [© Copyright 2011-2021 www.javatpoint.com. All rights reserved. Developed by JavaTpoint.](https://www.javatpoint.com/structure-padding-in-c) 
