@@ -243,9 +243,9 @@ AoS and SoA (Array of Structs and Struct of Arrays) are ways to organize your da
 When you implement your functions you should carefully think about the way your data is accessed.
 Accessing your data inefficiently can lead to surprising performance differences!
 
-#### Array of Structs
+#### Array of Structs (AoS)
 
-This method is a simple and naive approach that *can* be efficient. 
+This concept is a simple and naive approach that *can* be efficient. 
 
 Imagine you want to implement an array of 3-dimensional points
 and a function to access a point from that list.
@@ -267,7 +267,62 @@ float get_point_x(int i) {
 }
 ```
 
-If you want to iterate over this list and change every point, then this is a good idea.
+If you want to iterate over those points and apply some function to each point, then this is a good idea.
 However, if you want to iterate over all `x` coordinates for instance, 
 then your cashe is not used optimally. 
-Every time you access the `x` coordinate of a point, its `y` and `z`.
+Every time you access the `x` coordinate of a point, its `y` and `z` coordinate will also be in the cashe,
+despite not being needed for your function.
+This is a problem for two reasons.
+1. Your cashe will contain unused data, and therefore will not be used effectively.
+2. Your CPU cannot use [SIMD-like processing](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) for your data, since the `x` coordinates are not consecutive.
+
+### Struct of Arrays (SoA)
+
+When you expect your program to work on coordinates and not the whole points you may want to use the Struct of Arrays concept.
+
+```C
+struct point3DList {
+    float x[n];
+    float y[n];
+    float z[n];
+};
+
+struct point3DList points;
+
+float get_point_x(int i) {
+	return points.x[i];
+}
+```
+
+This concept embraces the idea of SIMD-like processing.
+The `x` coordinates, `y` coordinates, and `z` coordinates are all consecutive.
+It may be inefficient when you want to change every coordinate of some points (not all points).
+The problem is that there are *n* elements between the `x` coordinate of a point and the `y` coordinate of the same point.
+
+### Tiled Array of Structs
+
+You can also call this concept Array of Structs of Arrays.
+The idea is to combine the advantages of AoS and SoA.
+This is achieved by splitting the whole list of points into smaller parts, called Tiles.
+Each Tile should be of the same size.
+You should choose its size, so that alike elements can exactly fit into one casheline.
+
+```C
+struct point3Dx8 {
+    float x[8];
+    float y[8];
+    float z[8];
+};
+
+struct point3Dx8 points[(n+7) / 8];
+
+float get_point_x(int i) {
+	return points[i/8].x[i%8];
+}
+```
+
+As you can see, the implementation may get confusing for the reader,
+so be sure to hint why exactly your are doing this.
+
+The advantage is that you can process one casheline at a time in SIMD-like manner,
+but different coordinates that belong to the same point are not separated as much.
