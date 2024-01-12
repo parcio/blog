@@ -72,7 +72,7 @@ The supported communication types are:
 - RMA (remote memory access): Abstraction of RDMA to enable it also on systems that are not RDMA-capable
 - Atomic: Allow atomic operations at the network level
 
-[JULEA](https://github.com/julea-io/julea) is a flexible storage framework for clusters that allows offering arbitrary I/O interfaces to applications.
+[JULEA](https://github.com/parcio/julea) is a flexible storage framework for clusters that allows offering arbitrary I/O interfaces to applications.
 It runs completely in user space, which eases development and debugging.
 Because it runs on a cluster, a lot of network communication must be handled.
 Until now, it used TCP (via `GSocket`).

@@ -371,7 +371,7 @@ Another use case is to transform data while passing it through the chain.
 
 Nevertheless, the most interesting use case of VOL is to map HDF5 files to modern storage backends in a more intuitive way.
 Metadata, for example, might be separated and stored in a key-value store or database, while datasets might be stored in an object store.
-This is the case for the two VOL plugins currently under development in the [JULEA storage framework](https://github.com/julea-io/julea).
+This is the case for the two VOL plugins currently under development in the [JULEA storage framework](https://github.com/parcio/julea).
 The goal is to make use of the enhanced query capabilities of those backends to speed up the analysis of data.
 Another example is given by the [DAOS VOL plugin](https://github.com/HDFGroup/vol-daos), where the data model is mapped to the modern object store DAOS, which is designed for use with persistent RAM and NVMe SSDs.
 
