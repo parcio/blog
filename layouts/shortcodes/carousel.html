@@ -1,6 +1,36 @@
 <li id="carousel__slide{{.Get "id"}}" tabindex="0" class="carousel__slide">
   <div class="carousel__snapper">
-  {{ .Inner | markdownify }}
+<figure{{ with .Get "class" }} class="{{ . }}"{{ end }}>
+    {{- if .Get "link" -}}
+        <a href="{{ .Get "link" }}"{{ with .Get "target" }} target="{{ . }}"{{ end }}{{ with .Get "rel" }} rel="{{ . }}"{{ end }}>
+    {{- end -}}
+    <img src="{{ .Get "src" }}"
+		 {{- if .Get "show" -}}
+		 onclick="function Hey(){o=document.getElementById('{{ .Get "show" }}');o.style.backgroundImage='url({{ .Get "src" }})';o.style.display='block';};Hey();"
+		 {{- end -}}
+         {{- if or (.Get "alt") (.Get "caption") }}
+         alt="{{ with .Get "alt" }}{{ . }}{{ else }}{{ .Get "caption" | markdownify| plainify }}{{ end }}"
+         {{- end -}}
+         {{- with .Get "width" }} width="{{ . }}"{{ end -}}
+         {{- with .Get "height" }} height="{{ . }}"{{ end -}}
+    /><!-- Closing img tag -->
+    {{- if .Get "link" }}</a>{{ end -}}
+    {{- if or (or (.Get "title") (.Get "caption")) (.Get "attr") -}}
+        <figcaption>
+            {{ with (.Get "title") -}}
+                <h4>{{ . }}</h4>
+            {{- end -}}
+            {{- if or (.Get "caption") (.Get "attr") -}}<p>
+                {{- .Get "caption" | markdownify -}}
+                {{- with .Get "attrlink" }}
+                    <a href="{{ . }}">
+                {{- end -}}
+                {{- .Get "attr" | markdownify -}}
+                {{- if .Get "attrlink" }}</a>{{ end }}</p>
+            {{- end }}
+        </figcaption>
+    {{- end }}
+</figure>
   <a href="#carousel__slide{{.Get "prev"}}" class="carousel__prev">prev slide</a>
   <a href="#carousel__slide{{.Get "next"}}" class="carousel__next">next slide</a>
   </div>

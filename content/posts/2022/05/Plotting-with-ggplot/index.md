@@ -234,6 +234,14 @@ Examples:
  ```
 {{</detail-tag>}}
 
+Data frames can also be loadad from and written to csv files with `read.csv` and `write.csv`.
+```R
+data = read.csv("data.csv")
+write.csv(data, filename = "same_data.csv")
+```
+To store any object from R in a native way you should use `saveRDS(data, file = "data.rds")` and `readRDS(file = "data.rds")`, this allows sharing
+RObjects or storing them for later.
+
 The next step will be a short advices to setup your R environment for usage with the [command line tools](#r-from-the-command-line) or with an [IDE (RStudio)](#r-with-r-studio)
 
 ### R from the command line ###
@@ -243,6 +251,7 @@ and that the initial setup time is very small, and you can gradually advance you
 list some `R` integration extension for common text editors. 
 
 {{<detail-tag "**read section**">}}
+
 #### Installation and Package installation ####
 
 The first step is to install `R`, this can be done via the package manager of your trust or via the CRAN. CRAN is the content system of `R` providing the
@@ -273,7 +282,7 @@ local({
 })
 ```
 
-You can also use the `.Rprofile` to load a set of libraries you frequently use e.g. `ggplot2`. But conceder that loading a library takes time.
+You can also use the `.Rprofile` to load a set of libraries you frequently use e.g. `ggplot2`. But concider that loading a library takes time.
 ```R
 library(httpgd)
 library(ggplot2)
@@ -281,18 +290,39 @@ library(ggplot2)
 
 #### Running Scripts ####
 
-TODO: check for correctness
 In difference python you can not run an R-script with `R script.R`, you will use `Rscript script.R` for that. The on reason beside freedom of design are sessions, which are not automatically loaded when using `Rscript` instead of `R`, which is for a scripted execution most time the expected behaviors, to be reproducible.
+To create your first plot install `ggplot2` with
+```
+$ R
+> install.packages(c("ggplot2"))
+> q()
+```
+and run `Rscript `[`hello_ggplot.R`][hello_ggplot.R] and you should see a `plot.pdf`.
 
 #### Sessions ####
 
 The `R`-REPL uses Sessions. Which means if you want to exit `R` with CTRL-D or `q()` you get asked if you want to save the workspace. If you answer with yes, a `.Rhistory` and `.RData` file will be created in your current Directory. If you then start `R` again in this directory all your variables assigned, options set and commands executed will be amiable and you can continue were you stop. To store you workspace data use explicit `save.image()` or with optional `save.image(file="evreything.RData")`, you can also store and load specific R objects you can use the functions `save(obj1, obj2,file="objects.RData")` and `load("objects.RData")` to maybe share your data or create a backup. If you find the prompt at the end annoying you can start `R` with `R --no-save` or `R --save` to automatically answer this prompt, and to not have to type this every time you can use the alias system of your shell.
+An for plotting with the REPL can be found in [`hello_ggplot.R`][hello_ggplot.R]. If you dont want to type evrything use the `source` command from R.
+```
+$ R
+> source('hello_ggplot.R')
+httpgd server running at:
+  http://127.0.0.1:36329/live?token=JtPoNeQ2
+`geom_smooth()` using formula 'y ~ x'
+Warning messages:
+1: Removed 15 rows containing non-finite values (stat_smooth). 
+2: Removed 15 rows containing missing values (geom_point). 
+> 
+```
+
+The output will contain a view warnings we will care about later, but more important its contains a URL to view your newly created plot.
+
 
 #### Extensions ####
 
 [radian] is a interactive terminal to use `R` with syntax highlighting and autocompletion for multiple options. For interactive usage this can greatly improve the convenience. Radian requires python3 to run and can easily be installed with `pip install -U radian`
 
-[httpgd] is a way to interactive view your plots. After installing the library you can start a server with `hgd()`. Every time you now have a plot, it will be automatically shown at the specified web address. There you can view the history of plots, changing interactive the zoom level and store the final version in a format you like (eg. SVG, PDF, PNG). This can save a lot of time for fiddling with the correct display parameters or for just viewing intermediate plots, it also avoids problems R might have with your image viewer.
+[httpgd] is a R package to interactive view your plots. After installing the package you can start a server with `hgd()`. Every time you now have a plot, it will be automatically shown at the specified web address. There you can view the history of plots, changing interactive the zoom level and store the final version in a format you like (eg. SVG, PDF, PNG). This can save a lot of time for fiddling with the correct display parameters or for just viewing intermediate plots, it also avoids problems R might have with your image viewer.
 
 If you like code completion in your editor or environment you need to install the `R` library `languageserver`, this will install a LSP in `R` for R, which can be used from a wide variety of code completion extensions.
 
@@ -320,9 +350,7 @@ Priori to installing RStudio you must install a recent version of R, this can be
 
 > Note: If you using sway you propaly need to set `QT_QPA_PLATFORM=xcb`
 
-#### setup ####
-
-##### install packages
+#### install packages ####
 
 RStudio provides a list of all installed packages, at the bottom right in the `Packages` tab ([img](#carousel__slide1)).
 Checked packages are available in the R-Repl and for Scripts executed in RStudio without explicit loading.
@@ -332,22 +360,53 @@ If you want to install new packages you can do this by click on `Install` in the
 
 To effictive use the tools in RStudio you should set the working directory accordinly.
 Do this under `Session->Set Working Directory->Choos Directory...` or `Ctrl+Shift+H` ([img](#carousel__slide4)).
+For the Demo set the working directory to the folder containing [`hello_ggplot.R`][hello_ggplot.R]
+
+##### working with script files #####
+
+With the working directory set you can view the existing files in this directory in the filetab ([img](#carousel__slide5)).
+A existing source file in the directory can be opend with doubleclick the file in the file tab, in this case it should be [hello_ggplot.R](hello_ggplot.R).
+Then you can execute a script line by line with `cmd+Enter` or all at once with `cmd+shift+Enter` ([img](#carousel__slide6)).
+Now one advantages about using Rstudio is that you can now inspect all your data. In the bottom right is a plot tab which shows the newly created plot.
+It also allows to browse all plots from the session via the arrow buttons. The same goes for all data objects (primärly tables) you created in the session.
+They are listed in the top right, and can be further inspected with a double click, which will in the top left (beside your code tab) a tab to inspect the table ([img](#carousel__slide7)).
+
+Now if we might want to change the plot, wen can command out the line `geom_smooth(method = "loess", se = FALSE) +` with prepanding a `#`.
+This will remove the interpolation shown at the bottom. If we now dont want to execute the whole file again we can use multiple times `cmd+enter`
+or placing the cursur in line 11 and pressing `cmd+alt+E` to execute evrery line from the current one until the **E**nd of file ([img](#carousel__slide8)).
+
+The REPL at the bottom left uses the same enviroment as the scripts executed, therfore you can type single commands if you want to modify data.
+You can also use the REPL to install new libraries or apply settings, if you expect it closly you will see that installing new packages or changing the working directory
+via the UI will result in a automated typed and executed command in the REPL.
+
 
 <link rel="stylesheet" type="text/css" href="/css/carousel.css">
 <section class="carousel" aria-label="Gallery">
   <ol class="carousel__viewport">
-		{{% carousel id="1" prev="3" next="2" %}}
-{{< figures show="foobar" src="./rstudio/installtab.png" caption="List of installed and loaded packages can be found in the `Package` tab." >}}
-		{{% /carousel %}}
-		{{% carousel id="2" prev="1" next="3" %}}
-{{< figures show="foobar" src="./rstudio/update_install.png" caption="Use the buttons `Install` to install new packages and `update` to update installed once." >}}
-		{{% /carousel %}}
-		{{% carousel id="3" prev="2" next="4" %}}
-{{< figures show="foobar" src="./rstudio/install_popup.png" caption="Write the packages you want to install." >}}
-		{{% /carousel %}}
-		{{% carousel id="4" prev="3" next="1" %}}
-{{< figures show="fooblr" src="./rstudio/setworkingdir.png" caption="Set thi working directory to easly access all relevant data." >}}
-		{{% /carousel %}}
+		{{< carousel id="1" prev="4" next="2" show="foobar" 
+			src="./rstudio/installtab.png"
+			caption="List of installed and loaded packages can be found in the `Package` tab." >}}
+		{{< carousel id="2" prev="1" next="3"  show="foobar"
+			src="./rstudio/update_install.png"
+			caption="Use the buttons `Install` to install new packages and `update` to update installed once." >}}
+		{{< carousel id="3" prev="2" next="4"  show="foobar"
+			src="./rstudio/install_popup.png"
+			caption="Write the packages you want to install." >}}
+		{{< carousel id="4" prev="3" next="5" show="foobar"
+			src="./rstudio/setworkingdir.png"
+			caption="Set the working directory to easly access all relevant data." >}}
+		{{< carousel id="5" prev="4" next="6" show="foobar"
+			src="./rstudio/filetree.png"
+			caption="View files in you current working directory." >}}
+		{{< carousel id="6" prev="5" next="7" show="foobar"
+			src="./rstudio/executeExample.png"
+			caption="Execute the file with `cmd+shift+enter` to see the plot." >}}
+		{{< carousel id="7" prev="6" next="8" show="foobar"
+			src="./rstudio/viewdata.png"
+			caption="Old plots can be browsed via the arrow buttons. Also data objects are listed and can be inspected via doubleclick." >}}
+		{{< carousel id="8" prev="7" next="1" show="foobar"
+			src="./rstudio/newdata.png"
+			caption="The script can be changed and reexecuted which will update all other views." >}}
   </ol>
   <aside class="carousel__navigation">
 <ol class="carousel__navigation-list">
@@ -355,29 +414,26 @@ Do this under `Session->Set Working Directory->Choos Directory...` or `Ctrl+Shif
 {{< goto id="2" >}}
 {{< goto id="3" >}}
 {{< goto id="4" >}}
+{{< goto id="5" >}}
+{{< goto id="6" >}}
+{{< goto id="7" >}}
+{{< goto id="8" >}}
 </ol>
   </aside>
 </section>
 
 
-* basic usage 
-	* where is the REPL
-	* reexecute script
-	* script stop points
 
 {{</detail-tag>}}
 
 ### factors vs numeric ###
 
-* R differentiate data between
-	* factors (discreet values like labels)
-	* continues (continues eg numbers)
-* for each of them the representation in plots and as grouping label
-  is different
-* most times R detects correctly, but for example if you group your data with
-  numbers you must tell R explicit that the Row is a factor
-  `data$row = as.factor(data$row)`
+Concluding a small caviad in R. R differanciates between factors and numbers, factors are comparable with enums in other languages. They have in a strict order and
+disrcet. Because of there different nature also there visualisation is different. If you for example want to plot a numeric values as color, ggplot will use a gardient
+to display thet continous value, for factors, it will use a different color for each label / factor.
 
+Most times R will import the data correctly, but if you for example use numbers as labels, you need to manuel define which type it is.
+This can be easly done by `data$row = as.factor(data$row)`.
 
 ## ggplot ##
 
@@ -388,39 +444,175 @@ First the general structure of a ggplot plotting sicript will be shown, followed
 
 ### Hello World ###
 
+```R
+library(ggplot2)
+
+data("midwest", package = "ggplot2") # use example data provided by ggplot
+
+# magic code for loading hgd() plot server if not executed as script or in rstudio
+is_rstudio <- Sys.getenv("RSTUDIO") == "1"
+if (interactive() && ! is_rstudio) {
+  library(httpgd)
+  hgd()
+}
+
+# creating the Scatterplot
+gg <- ggplot(midwest, aes(x = area, y = poptotal)) + # mapping between column and axis
+  geom_point(aes(color = state, size = popdensity)) + # plot a point for each row
+																											# where the labels from column 'state' is displayed as color
+																											# and the the value popdentsity as radius
+  geom_smooth(method = "loess",	# interpolate data points with loess: Local Polynomial Regression Fitting
+							se = FALSE) + # not displaying the confident interval
+  xlim(c(0, 0.1)) + # only include data with a x value in [0,0.1]
+  ylim(c(0, 500000)) + # onyl include data with a y value in [0,500000]
+  labs(subtitle = "Area Vs Population", # set diifferent labels
+       y = "Population",
+       x = "Area",
+       title = "Scatterplot",
+       caption = "Source: midwest")
+
+if (interactive()) {
+  plot(gg)	# show plot 
+} else {
+  ggsave("plot.pdf", plot = gg) # store plot as pdf
+}
 ```
-library("ggplot2")
-# if used interactive from console
-# library("httpgd")
-# hgd()
 
+If you already run that code you may have spotted the warning messages: 
 
-data <- load.csv("timetable.csv")
-
-plot <- ggplot(data = data, aes(x = time, y = station, group = train)) + geom_line()
-
-# show image in gui extension(if in repl) or RStduio
-plot
-
-# store as pdf/png/jpg (and more) depending on the file extension(suffix)
-ggsave(plot, "plot.pdf")
-# to print in the right size (usefull for thesis)
-ggsave(plot, "plot.pdf", unit="cm", width=8, height=8)
+```sh
+Warning messages:
+1: Removed 15 rows containing non-finite values (stat_smooth). 
+2: Removed 15 rows containing missing values (geom_point). 
 ```
+
+This is a result of setting `xlim` and `ylim`. Because setting limits will ignore data points
+outside this limit, which will be 15 in total for that dataset. If you want to zoom in instead of 
+ignoring data you cann use: `coord_cartesian(xlim=c(0,0.1), ylim=c(0,500000)) + `.
+You can remove the `xlim` and `ylim` line to remove the error and see how all data plotted will look.
+To get a zoomed view add the `coord_cartesian` line. You will see that the interepolation differes from before,
+this is becaus now also points outside the plot will be used for the calculation.
+
+{{< detail-tag "Example without warnings" >}}
+```R
+library(ggplot2)
+
+data("midwest", package = "ggplot2") # use example data provided by ggplot
+
+# magic code for loading hgd() plot server if not executed as script or in rstudio
+is_rstudio <- Sys.getenv("RSTUDIO") == "1"
+if (interactive() && ! is_rstudio) {
+  library(httpgd)
+  hgd()
+}
+
+# creating the Scatterplot
+gg <- ggplot(midwest, aes(x = area, y = poptotal)) + # mapping between column and axis
+  geom_point(aes(color = state, size = popdensity)) + # plot a point for each row
+																											# where the labels from column 'state' is displayed as color
+																											# and the the value popdentsity as radius
+  geom_smooth(method = "loess",	# interpolate data points with loess: Local Polynomial Regression Fitting
+							se = FALSE) + # not displaying the confident interval
+	coord_cartesian(xlim = c(0, 0.1), ylim = c(0, 500000)) + # only shows plot area in limits
+  labs(subtitle = "Area Vs Population", # set diifferent labels
+       y = "Population",
+       x = "Area",
+       title = "Scatterplot",
+       caption = "Source: midwest")
+
+if (interactive()) {
+  plot(gg)	# show plot 
+} else {
+  ggsave("plot.pdf", plot = gg) # store plot as pdf
+}
+```
+{{< /detail-tag >}}}
+
+
 
 ### ggplot construction ###
 
-* `ggplot` set the default arguments for all following functions
-	* example is equal to `ggplot() + geom_line(data = data, aes(x = time, y = speed, group = car))`
-	* handy for eg `ggplot(...) + geom_line() + geom_errorbar()`
-* if needed default argements can be overwritten (clima diagram)
-	* `ggplot(...) + geom_line() + geom_line(aes(y = temprature)) + geom_`
+The base of a plot is constructed with the `ggplot` function. In that function
+the default arguments for all flowing layers will be defined. The most prominent is the `aes()` aka the axis definition and data.
+
+```R
+clima_data = read.csv("clima_DE.csv")
+ggplot(data = clima_data, aes(x = month, y = temperature)) + 
+	geom_points() +
+	geom_smooth(method = "loess", se = FALSE)
+```
+
+which would be equaivalent to:
+
+```R
+clima_data = read.csv("clima_DE.csv")
+ggplot() + 
+	geom_points(data = clima_data, aes(x = month, y = temperature)) +
+	geom_smooth(data = clima_data, aes(x = month, y = temperature), method = "loess", se = FALSE)
+```
+
+this could be usefull if data from multiple data frames should be plotted in one plot:
+
+```R
+data_DE = read.csv("clime_DE.csv")
+data_IT = read.csv("clima_IT.csv")
+ggplot(aes(x = month, y = temperature)) +
+	geom_smooth(data = data_DE, aes(color = "blue"), method = "loess", se = FALSE) + 
+	geom_smooth(data = data_IT, aes(color = "green"), method = "loess", se = FALSE)
+```
+
 
 ### Plot kinds ###
 
-* lineplot
-* scatterplot
-	* trend
+#### lineplot
+
+For Line plots in generall two options are provided:
+usage of `geom_smooth` to interpolate data
+or `geom_line` to directly plot them, fer the second you need to set `group = 1` because of lagcy reasons.
+
+```R
+data = read.csv("clima_DE.csv")
+ggplot(data, aes(x = month, y = temperature)) + geom_line(group = 1)
+```
+#### error bars
+
+You can plot confidence intervalls or min max values with `geom_errorbar` and `geom_crossbar`.
+Both of them require the binding of `ymin` and `ymax` in the aes, which detnotes where to find this values.
+Because of the layering nature you also can use multiple error bars to denote different values, or use a combination of error bars and crossboxes.
+
+```R
+data = read.csv("clima_DE.csv")
+ggplot(data, aes(x = month, y = temperature)) +
+	geom_line(group = 1) +
+	geom_errorbar(aes(ymin = temperature_min, ymax = temperature_max), width = 0.1) +
+	geom_errorbar(aes(ymin = temperature - 2 * temperature_sig, ymax = temperature + 2 * temperature_sig), width = 0.2) +
+	
+ggplot(data, aes(x = month, y = temperatuere)) +
+	geom_line(group = 1) +
+	geom_errorbar(aes(ymin = temperature_min, ymax = temperature_max)) +
+	geom_crossbox(aes(ymin = temperature - 2 * temperature_sig, ymax = temperature + 2 * temperature_sig))
+```
+
+#### scatter plots
+
+If you just want to plot you data points you can use `geom_points`, interisting to notice is that you could denote further information
+in the geometry and size of the point, beside its color (this is a bit like a z, u and v axis).
+
+In addtition to this basic illustration
+ggplot offers interpolation via `geom_smooth`. With `geom_smooth` you can set the interpolation.
+The arguments of highest interest are:
+* `se: bool` weather or not to print the confident intervall
+* `method` which method should be uses for interpolation eg.:
+	* lm uses a linear model filtering
+	* loess (default) Local Polynomial Regression Fitting
+	* or a function which does the enterpolation
+* `formular` if you now the the relation between x any y you can pass them via this argument, in addition you should set `method = lm`. For example
+	* logerithmic: `formular = y ~ log(x)`
+	* polynom of degree 3: `formular = y ~ poly(x, degree = 3)`
+	
+
+
+
 	* ribbon
 	* just some custom lines
 * bar plots
@@ -449,15 +641,34 @@ ggsave(plot, "plot.pdf", unit="cm", width=8, height=8)
 
 ## further readings ##
 
-[1]:http://www.mas.ncl.ac.uk/~ndjw1/teaching/sim/R-intro.html
-[2]:https://code.visualstudio.com/docs/languages/r
-[Interaction with R terminals]:https://github.com/REditorSupport/vscode-R/wiki/Interacting-with-R-terminals
-http://r-statistics.co/Complete-Ggplot2-Tutorial-Part1-With-R-Code.html
-https://cran.r-project.org/doc/manuals/r-release/R-admin.html
-[radian]:https://github.com/randy3k/radian
-[httpgd]:https://github.com/nx10/httpgd
-[REditorSupport]:https://marketplace.visualstudio.com/items?itemName=REditorSupport.r
-[Nvim-R]:https://github.com/jalvesaq/Nvim-R
-[coc]:https://github.com/neoclide/coc.nvim
-[RStduio-Download]:https://www.rstudio.com/products/rstudio/download/#download
-[rstudio-rcan]:https://cran.rstudio.com/
+* http://r-statistics.co/Complete-Ggplot2-Tutorial-Part1-With-R-Code.html
+* http://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html
+* https://cran.r-project.org/doc/manuals/r-release/R-admin.html
+* https://appsilon.com/rstudio-shortcuts-and-tips/
+
+**Referenced in the articlve:**
+
+* [radian]:https://github.com/randy3k/radian
+	https://github.com/randy3k/radian
+* [httpgd]:https://github.com/nx10/httpgd
+	https://github.com/nx10/httpgd
+* [REditorSupport]:https://marketplace.visualstudio.com/items?itemName=REditorSupport.r
+	https://marketplace.visualstudio.com/items?itemName=REditorSupport.r
+* [Nvim-R]:https://github.com/jalvesaq/Nvim-R
+	https://github.com/jalvesaq/Nvim-R
+* [coc]:https://github.com/neoclide/coc.nvim
+	https://github.com/neoclide/coc.nvim
+* [RStduio-Download]:https://www.rstudio.com/products/rstudio/download/#download
+	https://www.rstudio.com/products/rstudio/download/#download
+* [rstudio-rcan]:https://cran.rstudio.com/
+	https://cran.rstudio.com/
+* [hello_ggplot.R]:./examples/hello_ggplot.R
+	[./examples/hello_ggplot.R](./examples/hello_ggplot.R)
+* [1]:http://www.mas.ncl.ac.uk/~ndjw1/teaching/sim/R-intro.html
+	http://www.mas.ncl.ac.uk/~ndjw1/teaching/sim/R-intro.html
+* [2]:https://code.visualstudio.com/docs/languages/r
+	https://code.visualstudio.com/docs/languages/r
+* [Interaction with R terminals]:https://github.com/REditorSupport/vscode-R/wiki/Interacting-with-R-terminals
+	https://github.com/REditorSupport/vscode-R/wiki/Interacting-with-R-terminals
+* [weather data]:https://data.open-power-system-data.org/weather_data/
+	https://data.open-power-system-data.org/weather_data/
