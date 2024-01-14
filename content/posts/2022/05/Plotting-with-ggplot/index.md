@@ -14,7 +14,7 @@ Don't be deterred if you can't program in R; to use ggplot, substantial R knowle
 <div id="foobar" style="display: none; position: fixed;z-index:9999;top:0;left:0;width:100vw;height:100vh;background-size:contain;background-repeat: no-repeat no-repeat;background-position: center center; background-color:black"
 	onclick="this.style.display='none'"></div>
 
-Unlike many other plotting solutions like `matplotlib`, `gnuplot` or even `Matlab`; `ggplot` offers a layer based approach with sensible defaults. 
+Unlike many other plotting solutions like `matplotlib`, `gnuplot` or even `Matlab`; `ggplot` offers a layer based approach with sensible defaults.
 This means that when you input data tuples with a group identifier, a legend is automatically generated using the identifier as a label. To change the appearance, you can add a naming layer which specifies the label names. Want a scatter plot with a trend? Simply add a trend layer to your scatter plot.
 
 In this post we will take a look at the fundamentals of plotting with `ggplot`. Therefore, we start with a short introduction how to use R and how to install packages. Followed by the backbone of a line plot.
@@ -99,7 +99,7 @@ Usage:
      data.frame(..., row.names = NULL, check.rows = FALSE,
                 check.names = TRUE, fix.empty.names = TRUE,
                 stringsAsFactors = FALSE)
-     
+
 Arguments:
 
      ...: these arguments are of either the form ‘value’ or ‘tag =
@@ -222,15 +222,15 @@ Examples:
      (d <- data.frame(x = 1, y = 1:10, char = char))
      ## The "same" with automatic column names:
      data.frame(1, 1:10, sample(L3, 10, replace = TRUE))
-     
+
      is.data.frame(d)
-     
+
      ## enable automatic conversion of character arguments to factor columns:
      (dd <- data.frame(d, fac = letters[1:10], stringsAsFactors = TRUE))
      rbind(class = sapply(dd, class), mode = sapply(dd, mode))
-     
+
      stopifnot(1:10 == row.names(d))  # {coercion}
-     
+
      (d0  <- d[, FALSE])   # data frame with 0 columns and 10 rows
      (d.0 <- d[FALSE, ])   # <0 rows> data frame  (3 named cols)
      (d00 <- d0[FALSE, ])  # data frame with 0 columns and 0 rows
@@ -251,7 +251,7 @@ The next step will contain short advices to set up your R environment for usage 
 
 The pros of using `R` directly from the command line with your favorite text editor is that you do not need to families you with yet another editor.
 Also, the initial setup time is very small, and you can gradually advance your setup as needed. In this section we will give tips for setting up `R` and
-list some `R` integration extension for common text editors. 
+list some `R` integration extension for common text editors.
 
 {{<detail-tag "**read section**">}}
 
@@ -267,7 +267,7 @@ You can also use in your R-session the function `choosCRANmirror()` to set the d
 
 * https://mirror.dogado.de/cran/ dogado GmbH
 * https://ftp.gwdg.de/pub/misc/cran/ GWDG Göttingen
-* https://cran.uni-muenster.de/ University of Münster, Germany 
+* https://cran.uni-muenster.de/ University of Münster, Germany
 
 **USA**
 * https://repo.miserver.it.umich.edu/cran/ MBNI, University of Michigan, Ann Arbor, MI
@@ -275,7 +275,7 @@ You can also use in your R-session the function `choosCRANmirror()` to set the d
 * https://archive.linux.duke.edu/cran/ Duke University, Durham, NC
 {{</detail-tag>}}
 
-To install packages you can then use `install.packages(c("pkg1", "pkg2"), repos = "https://cran.your.selection")`. To not type your repos every time you can use once per session `choosCRANmirror()`, or 
+To install packages you can then use `install.packages(c("pkg1", "pkg2"), repos = "https://cran.your.selection")`. To not type your repos every time you can use once per session `choosCRANmirror()`, or
 use the R-config file `.Rprofile` in your home and add the following code:
 ```R
 local({
@@ -315,9 +315,9 @@ httpgd server running at:
   http://127.0.0.1:36329/live?token=JtPoNeQ2
 `geom_smooth()` using formula 'y ~ x'
 Warning messages:
-1: Removed 15 rows containing non-finite values (stat_smooth). 
-2: Removed 15 rows containing missing values (geom_point). 
-> 
+1: Removed 15 rows containing non-finite values (stat_smooth).
+2: Removed 15 rows containing missing values (geom_point).
+>
 ```
 
 The output will contain view warnings we will care about later, but more important its contains a URL to view your newly created plot.
@@ -340,7 +340,7 @@ This will allow viewing plots, and run code from your editor. For that you start
 
 For NVIM and VIM I recommend the plugin Nvim-R, which provides, object viewer, syntax highlighting, documentation viewing and despite its name also works for VIM. In addition, [httpgd] works good since it's allows to view the plots easily. Nvim-R has many features, but you'll likely only need a few of them.
 
-For syntax completion and highlighting my recommendation is to install the R-library `langugaeserver` and use the LSP via the NVIM internal LSP support or for VIM use it via [coc] or similar LSP support plugin. 
+For syntax completion and highlighting my recommendation is to install the R-library `langugaeserver` and use the LSP via the NVIM internal LSP support or for VIM use it via [coc] or similar LSP support plugin.
 {{</detail-tag>}}
 
 
@@ -389,7 +389,7 @@ via the UI will result in an automated typed and executed command in the REPL.
 <link rel="stylesheet" type="text/css" href="/css/carousel.css">
 <section class="carousel" aria-label="Gallery">
   <ol class="carousel__viewport">
-		{{< carousel id="1" prev="4" next="2" show="foobar" 
+		{{< carousel id="1" prev="4" next="2" show="foobar"
 			src="./rstudio/installtab.png"
 			caption="List of installed and loaded packages can be found in the `Package` tab." >}}
 		{{< carousel id="2" prev="1" next="3"  show="foobar"
@@ -450,7 +450,7 @@ This can be easily done by `data$row = as.factor(data$row)`.
 ggplot is a plotting library written in R. It adopts an R orientation on data frames/tables and data flow instead of command flow. In addition, it provides sensible defaults. Therefore, most commands have many optional parameters, which behaves in sensible manners if let empty. This is also reflected in the construction of plots.
 You do not draw individual points, you compose your plot out of layers, each layer therefore representing a kind of geometry, or modification at the axis, legend or theme.
 
-First the general structure of a ggplot plotting script will be shown, followed by examples to layer based construction of plots. After this basics set, the realization of different plot types as there geometry to construct them is listed, followed by customizing the plot, e.g. changing colors, and legend descriptions. 
+First the general structure of a ggplot plotting script will be shown, followed by examples to layer based construction of plots. After this basics set, the realization of different plot types as there geometry to construct them is listed, followed by customizing the plot, e.g. changing colors, and legend descriptions.
 
 ### Hello World ###
 
@@ -482,22 +482,22 @@ gg <- ggplot(midwest, aes(x = area, y = poptotal)) + # mapping between column an
        caption = "Source: midwest")
 
 if (interactive()) {
-  plot(gg)	# show plot 
+  plot(gg)	# show plot
 } else {
   ggsave("plot.pdf", plot = gg) # store plot as pdf
 }
 ```
 
-If you already run that code you may have spotted the warning messages: 
+If you already run that code you may have spotted the warning messages:
 
 ```sh
 Warning messages:
-1: Removed 15 rows containing non-finite values (stat_smooth). 
-2: Removed 15 rows containing missing values (geom_point). 
+1: Removed 15 rows containing non-finite values (stat_smooth).
+2: Removed 15 rows containing missing values (geom_point).
 ```
 
 This is a result of setting `xlim` and `ylim`. Because setting limits will ignore data points
-outside this limit, which will be 15 in total for that dataset. If you want to zoom in instead of 
+outside this limit, which will be 15 in total for that dataset. If you want to zoom in instead of
 ignoring data you can use: `coord_cartesian(xlim=c(0,0.1), ylim=c(0,500000)) + `.
 You can remove the `xlim` and `ylim` line to remove the error and see how all data plotted will look.
 To get a zoomed view add the `coord_cartesian` line. You will see that the interpolation differs from before,
@@ -531,7 +531,7 @@ gg <- ggplot(midwest, aes(x = area, y = poptotal)) + # mapping between column an
        caption = "Source: midwest")
 
 if (interactive()) {
-  plot(gg)	# show plot 
+  plot(gg)	# show plot
 } else {
   ggsave("plot.pdf", plot = gg) # store plot as pdf
 }
@@ -547,7 +547,7 @@ the default arguments for all flowing layers will be defined. The most prominent
 
 ```R
 clima_data <- read.csv("clima_DE.csv")
-ggplot(data = clima_data, aes(x = Month, y = Temperature)) + 
+ggplot(data = clima_data, aes(x = Month, y = Temperature)) +
 	geom_point()
 ```
 
@@ -556,7 +556,7 @@ Which would be equivalent to:
 ```R
 clima_data <- read.csv("clima_DE.csv")
 clima_data$Month <- as.numeric(factor(clima_data$Month))
-ggplot() + 
+ggplot() +
 	geom_point(data = clima_data, aes(x = Month, y = Temperature))
 ```
 
@@ -566,7 +566,7 @@ this could be useful if data from multiple data frames should be plotted in one 
 data_DE <- read.csv("clima_DE.csv")
 data_IT <- read.csv("clima_IT.csv")
 ggplot(mapping = aes(x = Month, y = Temperature)) +
-	geom_point(data = data_DE, aes(color = "DE")) + 
+	geom_point(data = data_DE, aes(color = "DE")) +
 	geom_point(data = data_IT, aes(color = "IT"))
 ```
 
@@ -583,7 +583,7 @@ MonthLevels <- c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 
 data_DE <- read.csv("clima_DE.csv")
 data_IT <- read.csv("clima_IT.csv")
 ggplot(mapping = aes(x = Month, y = Temperature)) +
-	geom_point(data = data_DE, aes(color = "DE")) + 
+	geom_point(data = data_DE, aes(color = "DE")) +
 	geom_point(data = data_IT, aes(color = "IT"))
 ```
 
@@ -599,8 +599,8 @@ data_DE$Month <- as.numeric(factor(data_DE$Month, levels=MonthLevels))
 data_IT <- read.csv("clima_IT.csv")
 data_IT$Month <- as.numeric(factor(data_IT$Month, levels=MonthLevels))
 ggplot(mapping = aes(x = Month, y = Temperature)) +
-	geom_smooth(data = data_DE, aes(color = "DE"), method = "loess", se = FALSE) + 
-	geom_point(data = data_DE, aes(color = "DE")) + 
+	geom_smooth(data = data_DE, aes(color = "DE"), method = "loess", se = FALSE) +
+	geom_point(data = data_DE, aes(color = "DE")) +
 	geom_smooth(data = data_IT, aes(color = "IT"), method = "loess", se = FALSE) +
 	geom_point(data = data_IT, aes(color = "IT")) +
 	scale_x_continuous(breaks = 1:length(MonthLevels))
@@ -616,8 +616,8 @@ data_DE$Month <- as.numeric(factor(data_DE$Month, levels=MonthLevels))
 data_IT <- read.csv("clima_IT.csv")
 data_IT$Month <- as.numeric(factor(data_IT$Month, levels=MonthLevels))
 ggplot(mapping = aes(x = Month, y = Temperature)) +
-	geom_smooth(data = data_DE, aes(color = "DE"), method = "loess", se = FALSE) + 
-	geom_point(data = data_DE, aes(color = "DE")) + 
+	geom_smooth(data = data_DE, aes(color = "DE"), method = "loess", se = FALSE) +
+	geom_point(data = data_DE, aes(color = "DE")) +
 	geom_smooth(data = data_IT, aes(color = "IT"), method = "loess", se = FALSE) +
 	geom_point(data = data_IT, aes(color = "IT")) +
 	scale_x_continuous(breaks = 1:length(MonthLevels)) +
@@ -688,7 +688,7 @@ ggplot(data, aes(x = month, y = temperature)) +
 	geom_line(group = 1) +
 	geom_errorbar(aes(ymin = temperature_min, ymax = temperature_max), width = 0.1) +
 	geom_errorbar(aes(ymin = temperature - 2 * temperature_sig, ymax = temperature + 2 * temperature_sig), width = 0.2) +
-	
+
 ggplot(data, aes(x = month, y = temperatuere)) +
 	geom_line(group = 1) +
 	geom_errorbar(aes(ymin = temperature_min, ymax = temperature_max)) +
@@ -724,7 +724,7 @@ ggplot(data, aes(x = Month, y = Temperature)) +
 	scale_color_gradientn(colors = c("red", "yellow", "blue"), limits = c(0, 100), values = c(0, 0.25, 1))
 ```
 
-In this case we define a gradient between the colors red-yellow and yellow blue, for the scale from 0 to 100, 
+In this case we define a gradient between the colors red-yellow and yellow blue, for the scale from 0 to 100,
 where red is at 0, yellow at 25 (25 * 100 + 0) and blue at 100.
 
 For more options like log scale or custom labels at breaks, see [here][scale_gradient]
@@ -748,7 +748,7 @@ A usage example can be found in [section ggplot construction](#ggplot-constructi
 Think of ribbon plots as enhanced line plots, where not only do you get a sense of the central tendency (like a mean), but you also see the spread or uncertainty around it—visualized as a shaded 'ribbon'.
 
 A ribbon plot uses 3 aesthetics to display:
-+ `y` the mean val 
++ `y` the mean val
 + `ymin` the lower bound of the ribbon
 + `ymax` the higher bound of the ribbon
 
@@ -867,7 +867,7 @@ If you want to scale the x- or y-axis you can do this with:
 `scale_x_continuous(trans="log10")`
 
 Where trans contains a transformation object, or the name of it.
-Default implemented transformations are: `asn`, `atanh`, `boxcox`, `date`, `exp`, `hms`, `identity`, `log`, `log10`, `log1p`, `log2`, `logit`, `modulus`, `probability`, `probit`, `pseudo_log`, `reciprocal`, `reverse`, `sqrt` and `time`. [src][scale_continuous] 
+Default implemented transformations are: `asn`, `atanh`, `boxcox`, `date`, `exp`, `hms`, `identity`, `log`, `log10`, `log1p`, `log2`, `logit`, `modulus`, `probability`, `probit`, `pseudo_log`, `reciprocal`, `reverse`, `sqrt` and `time`. [src][scale_continuous]
 
 #### custom axis labels
 
@@ -917,7 +917,7 @@ If you want to change the grid optic you use the theme modules `panal.grid`.
 If you want to set custom breaks you need to define it in the scales.
 
 ```R
-p + 
+p +
 	theme(
 		panal.grid.minor = element_line(),
 		panal.grid.major = element_line(),
