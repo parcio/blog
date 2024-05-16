@@ -3,25 +3,25 @@
   {
       "@context": "http://schema.org",
       "@type": "WebSite",
-      {{ with .Site.Params.GeekblogAuthor -}}
+      {{ with .Site.Params.geekblogAuthor -}}
       {{ with index $.Site.Data.authors . }}"author": "{{ .name }}",{{ end }}
       {{- end }}
       "name": {{ .Site.Title }},
-      "url": {{ .Site.BaseURL }},
+      "url": {{ .Site.Home.Permalink }},
       {{- with partial "utils/description" . }}
       "description": "{{ . | plainify | htmlUnescape | chomp }}",
       {{- end }}
       {{- with partial "utils/featured" . }}
       "thumbnailUrl": {{ . }},
       {{- end }}
-      {{- with .Site.Params.GeekblogContentLicense }}
+      {{- with .Site.Params.geekblogContentLicense }}
       "license": "{{ .name }}",
       {{- end }}
       "inLanguage": {{ .Lang }}
   }
   </script>
 {{- else if .IsPage }}
-  {{- $authors := default (slice .Site.Params.GeekblogAuthor) .Params.authors -}}
+  {{- $authors := default (slice .Site.Params.geekblogAuthor) .Params.authors -}}
   {{- $ac := 0 -}}
   {{- $ac_max := default 0 (len $authors) -}}
 
@@ -43,7 +43,7 @@
       "thumbnailUrl": {{ . }},
       {{- end }}
       "wordCount" : "{{ .WordCount }}",
-      {{- with .Site.Params.GeekblogContentLicense }}
+      {{- with .Site.Params.geekblogContentLicense }}
       "license": "{{ .name }}",
       {{- end }}
       "inLanguage": {{ .Lang }},
@@ -77,7 +77,7 @@
       "publisher":{
           "@type":"Organization",
           "name": {{ .Site.Title }},
-          "url": {{ .Site.BaseURL }},
+          "url": {{ .Site.Home.Permalink }},
           "logo": {
               "@type": "ImageObject",
               "url": {{ (default "brand.svg" .Site.Params.logo) | absURL }},
