@@ -24,6 +24,8 @@ jobs:
   hugo:
     name: Hugo
     runs-on: ubuntu-24.04
+    # hugo-geekblog 2.0 requires Hugo 0.128, but Ubuntu 24.04 only provides 0.123
+    container: docker.io/library/ubuntu:25.04
     timeout-minutes: 30
     steps:
       - name: Checkout

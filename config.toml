@@ -3,7 +3,6 @@ languageCode = "en-us"
 title = "Parallel Computing and I/O Blog"
 theme = "hugo-geekblog"
 
-paginate = 5
 pluralizeListTitles = false
 
 # Geekblog required configuration
@@ -13,6 +12,9 @@ disablePathToLower = true
 
 # Required if you want to render robots.txt template
 enableRobotsTXT = true
+
+[pagination]
+  pagerSize = 5
 
 # Needed for mermaid shortcodes
 [markup]
