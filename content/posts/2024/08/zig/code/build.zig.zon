@@ -1,0 +1,18 @@
+.{
+    .name = "Md5",
+    .version = "1.0.0",
+    .paths = .{""},
+    .dependencies = .{
+        .capy = .{
+            .url = "https://github.com/capy-ui/capy/archive/d55a9ddf39ebaeed7d25279c08922bb8cf4613db.tar.gz",
+            .hash = "12202d8a1a46e0e78dc366ba3cb9843821b65ed3d0e110cf705bdeaba9eb8f75ac75",
+            .lazy = true,
+        },
+        .@"microzig/build" = .{
+            .path = "../../forks/microzig/build/",
+        },
+        .@"microzig/bsp/raspberrypi/rp2040" = .{
+            .path = "../../forks/microzig/bsp/raspberrypi/rp2040/",
+        },
+    },
+}

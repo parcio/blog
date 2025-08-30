@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Md5 Wasm Example</title>
+    <script>
+        /** @type {{memory: WebAssembly.Memory, computeMd5: function (message: number, len: Number, hash_str: number)}} */
+        const wasmObj = {
+            memory: undefined,
+            computeMd5: undefined,
+        }
+
+        /** @return {Promise<ArrayBuffer>} */
+        function fetchWasmBuffer() {
+            return fetch("Md5-Wasm.wasm.gz")
+                .then(data => data.blob())
+                .then(wasmGzipBlob => {
+                    let wasmStream = wasmGzipBlob.stream().pipeThrough(new DecompressionStream("gzip"));
+                    return new Response(wasmStream, { headers: {"Content-Type": "application/wasm"} }).arrayBuffer();
+                });
+        }
+
+        wasmObj.memory = new WebAssembly.Memory({
+            initial: 100, maximum: 100, shared: false
+        });
+        fetchWasmBuffer()
+            .then(wasmBuffer => WebAssembly.instantiate(wasmBuffer, {env: {memory: wasmObj.memory}}))
+            .then(wasmInstance => {
+                wasmObj.computeMd5 = wasmInstance.instance.exports.computeMd5;
+            });
+
+        function executeMd5() {
+            if(wasmObj.computeMd5 === undefined) {
+                console.error("wasmObj was not ready!")
+                return;
+            }
+
+            /** @type {String} */
+            let message = document.getElementById("message").value;
+            let encodeResult = new TextEncoder().encodeInto(message, new Uint8Array(wasmObj.memory.buffer, 32));
+            wasmObj.computeMd5(32, encodeResult.written, 0);
+
+            let hashView = new DataView(wasmObj.memory.buffer, 0, 32);
+            document.getElementById("hash").innerText = new TextDecoder().decode(hashView);
+        }
+    </script>
+</head>
+<body style="white-space: nowrap">
+<div style="display: grid; grid-template-columns: repeat(2, min-content); gap: 1ch; align-items: center">
+    <label for="message">Message (In)</label>
+    <input type="text" id="message" value="Hello, World!">
+
+    <label for="hash">Hash (Out)</label>
+    <span id="hash" style="font-family: monospace"></span>
+
+    <button style="grid-column: span 2" onclick="executeMd5()">Execute</button>
+</div>
+</body>
+</html>
